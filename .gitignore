@@ -1,0 +1,6 @@
+__pycache__/
+Cookie_loi/
+*.pyc
+temp_*/
+run_local.bat
+.env
