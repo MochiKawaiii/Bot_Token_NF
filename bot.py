@@ -275,16 +275,38 @@ def webhook():
     else:
         return jsonify({"error": "Invalid content-type"}), 403
 
+def setup_menu():
+    try:
+        # Menu chung cho mọi người
+        bot.set_my_commands([
+            telebot.types.BotCommand("get_token", "Rút 1 link xem Netflix"),
+            telebot.types.BotCommand("diemdanh", "Điểm danh hàng ngày"),
+            telebot.types.BotCommand("start", "Xem thông tin & Hướng dẫn"),
+            telebot.types.BotCommand("ping", "Kiểm tra kết nối Bot")
+        ])
+        # Menu vip cho Admin
+        if ADMIN_ID:
+            bot.set_my_commands([
+                telebot.types.BotCommand("get_token", "Rút 1 link xem Netflix"),
+                telebot.types.BotCommand("diemdanh", "Điểm danh hàng ngày"),
+                telebot.types.BotCommand("stats", "Xem thống kê DB (Admin)"),
+                telebot.types.BotCommand("clear_cookies", "Xoá DB Cookie (Admin)"),
+                telebot.types.BotCommand("start", "Xem thông tin & Hướng dẫn"),
+                telebot.types.BotCommand("ping", "Kiểm tra kết nối Bot")
+            ], scope=telebot.types.BotCommandScopeChat(ADMIN_ID))
+    except Exception as e:
+        print("Lỗi cài đặt menu:", e)
+
 def set_webhook():
     if WEBHOOK_URL:
         bot.remove_webhook()
-        # Chờ 1 giây
         time.sleep(1)
         full_webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TOKEN}"
         bot.set_webhook(url=full_webhook_url)
 
 if __name__ == '__main__':
     # Chạy cục bộ bằng Long Polling nếu không truyền WEBHOOK_URL
+    setup_menu()
     if not WEBHOOK_URL:
         bot.remove_webhook()
         bot.infinity_polling()
@@ -292,3 +314,4 @@ if __name__ == '__main__':
 # Cấu hình webhook khi chạy với gunicorn
 if WEBHOOK_URL:
     set_webhook()
+    setup_menu()
