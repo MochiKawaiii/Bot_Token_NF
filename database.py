@@ -62,10 +62,36 @@ def mark_cookie_as_dead(netflix_id):
 def count_stats():
     """Lấy thống kê DB"""
     db = get_db()
+    
     cookies_col = db.cookies
-    total = cookies_col.count_documents({})
-    alive = cookies_col.count_documents({"is_alive": True})
-    return {"total": total, "alive": alive}
+    cookie_total = cookies_col.count_documents({})
+    cookie_alive = cookies_col.count_documents({"is_alive": True})
+    
+    # Tính tổng số link đã phát từ trước đến nay
+    pipeline = [{"$group": {"_id": None, "total_generated": {"$sum": "$times_used"}}}]
+    res = list(cookies_col.aggregate(pipeline))
+    total_generated = res[0]["total_generated"] if len(res) > 0 else 0
+    
+    # Thống kê lượng User
+    users_col = db.users
+    users_total = users_col.count_documents({})
+    
+    # Số users có hoạt động điểm danh hoặc lấy link hôm nay
+    today = get_vietnam_date()
+    active_today = users_col.count_documents({
+        "$or": [
+            {"last_usage_date": today, "usage_today": {"$gt": 0}},
+            {"last_checkin_date": today}
+        ]
+    })
+    
+    return {
+        "cookie_total": cookie_total, 
+        "cookie_alive": cookie_alive,
+        "users_total": users_total,
+        "users_active_today": active_today,
+        "total_generated": total_generated
+    }
 
 def clear_all_cookies():
     """Xóa toàn bộ cookies (chỉ dùng bởi admin)"""

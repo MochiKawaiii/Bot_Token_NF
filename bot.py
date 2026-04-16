@@ -79,15 +79,25 @@ def checkin_command(message):
 @bot.message_handler(commands=['stats'])
 def stats_command(message):
     if not is_admin(message.from_user.id):
-        bot.reply_to(message, "❌ Tính năng này chỉ dành cho Admin để kiểm tra kho dự trữ.")
+        bot.reply_to(message, "❌ Tính năng này chỉ dành cho Admin để kiểm tra kho phòng máy.")
         return
         
     try:
-        stats = db.count_stats()
-        text = f"📊 Tổng số Cookie đã nạp: {stats['total']}\n✅ Số Cookie còn Sống: {stats['alive']}"
-        bot.reply_to(message, text)
+        s = db.count_stats()
+        text = (
+            "📊 *BÁO CÁO HỆ THỐNG NETFLIX*\n"
+            "---------------------------\n"
+            "👥 *Tình trạng Hoạt Động (User):*\n"
+            f"- Tổng khách đã đăng ký: `{s['users_total']}` người\n"
+            f"- Số khách húp link hôm nay: `{s['users_active_today']}` người\n"
+            "---------------------------\n"
+            "🍪 *Sức khỏe Kho Cookie:*\n"
+            f"- Trữ lượng còn Sống: `{s['cookie_alive']}` / Tổng đã nạp `{s['cookie_total']}` cục\n"
+            f"- 🎟 Tổng số Link đã phát ra: `{s['total_generated']} lượt`\n"
+        )
+        bot.reply_to(message, text, parse_mode="Markdown")
     except Exception as e:
-        bot.reply_to(message, f"❌ Lỗi truy cập DB: {e}")
+        bot.reply_to(message, f"❌ Lỗi truy cập Database: {e}")
 
 @bot.message_handler(commands=['clear_cookies'])
 def clear_command(message):
