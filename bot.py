@@ -19,7 +19,7 @@ if ADMIN_ID:
 if not TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN is not set")
 
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
 import logging
