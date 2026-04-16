@@ -22,6 +22,16 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
+import logging
+logger = telebot.logger
+telebot.logger.setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
+
+# Lệnh kiểm tra sinh tồn cơ bản
+@bot.message_handler(commands=['ping'])
+def send_ping(message):
+    bot.reply_to(message, "Pong! Tôi vẫn đang sống và nhận tin nhắn!")
+
 # --- Helper Logic ---
 def save_dead_cookie_to_file(cookie_doc):
     os.makedirs("Cookie_loi", exist_ok=True)
