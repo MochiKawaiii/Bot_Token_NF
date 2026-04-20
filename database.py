@@ -156,11 +156,11 @@ def can_generate_link(user_id, username=""):
     streak = user.get("streak", 0)
     
     # Tính hạn mức tối đa
-    limit = 1
+    limit = 3
     if streak >= 3:
-        limit = 2
-    if streak >= 7:
-        limit = 3
+        limit = 4
+    if streak >= 5:
+        limit = 5
         
     if usage < limit:
         return True, limit - usage, limit

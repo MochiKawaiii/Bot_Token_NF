@@ -69,9 +69,9 @@ def send_welcome(message):
             "🔗 `/get_token` - Rút 1 cookie sinh Link xem Netflix.\n"
             "🗓 `/diemdanh` - Điểm danh mỗi ngày để lấy được thêm link.\n\n"
             "⚡️ *Quyền lợi điểm danh:*\n"
-            "- Mặc định: Được lấy 1 link/ngày.\n"
-            "- Điểm danh ≥ 3 ngày: Được 2 link/ngày.\n"
-            "- Điểm danh ≥ 7 ngày: Được 3 link/ngày.\n"
+            "- Mặc định: Được lấy 3 link/ngày.\n"
+            "- Điểm danh ≥ 3 ngày: Được 4 link/ngày.\n"
+            "- Điểm danh ≥ 5 ngày: Được 5 link/ngày.\n"
         )
     bot.reply_to(message, text, parse_mode="Markdown")
 
