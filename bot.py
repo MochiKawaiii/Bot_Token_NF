@@ -176,7 +176,7 @@ def get_token_command(message):
                                   message_id=loading_msg.message_id, parse_mode="Markdown", reply_markup=markup)
             return
             
-        except extractor.requests.exceptions.HTTPError as e:
+        except (extractor.requests.exceptions.HTTPError, ValueError) as e:
             # Thông báo đổi Cookie (Làm xoa dịu người dùng)
             try:
                 bot.edit_message_text(f"♻️ Cookie vừa chọn bị từ chối, đang thử tự động lục cookie khác...", 
