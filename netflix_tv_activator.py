@@ -84,8 +84,4 @@ def activate_tv_code(cookie_dict, code):
     if any(keyword in text_lower for keyword in error_keywords):
         raise ValueError("Invalid TV Code: Mã code không hợp lệ hoặc đã hết hạn (chỉ có tác dụng 5 phút).")
         
-    # Có 1 trường hợp là Cookie bị block tính năng đăng nhập, có thể báo error khác
-    if "error" in text_lower and ("sign_in" in text_lower or "login" in text_lower):
-        raise ValueError("Cookie bị từ chối tính năng TV8.")
-
     return True

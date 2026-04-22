@@ -252,11 +252,15 @@ def tv_command(message):
                                       message_id=loading_msg.message_id)
                 return
             else:
-                # NGỪNG GIẾT COOKIE VÔ TỘI VẠ: Lỗi này có thể do API bị thay đổi chứ không phải do Cookie.
-                # Thay vì xoá cookie, chỉ thử 1 lần rồi báo lỗi hệ thống.
-                bot.edit_message_text(f"❌ Lỗi xử lý TV: {err_msg}. Vui lòng báo Admin kiểm tra lại API.", 
-                                      chat_id=message.chat.id, message_id=loading_msg.message_id)
-                return
+                # Lỗi authURL hỏng hoặc bị khoá chức năng -> Chuyển cookie
+                db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                save_dead_cookie_to_file(cookie_doc)
+                try:
+                    bot.edit_message_text("♻️ Cookie không hỗ trợ kích hoạt TV, đang đổi cookie khác...", 
+                                          chat_id=message.chat.id, message_id=loading_msg.message_id)
+                except Exception:
+                    pass
+                time.sleep(1)
                 
         except Exception as e:
             # Lỗi mạng
