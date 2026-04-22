@@ -67,21 +67,13 @@ def activate_tv_code(cookie_dict, code):
     resp_post = session.post(TV_URL, data=post_data, headers=post_headers, timeout=15, verify=False)
     resp_post.raise_for_status()
     
-    # Bước 3: Đọc phản hồi HTML để xem có lỗi về mã code không
-    text_lower = resp_post.text.lower()
-    
-    # Danh sách các từ khoá lỗi phổ biến của Netflix khi mã sai hoặc hết hạn
-    error_keywords = [
-        "not valid", 
-        "invalid code", 
-        "mã không hợp lệ", 
-        "mã đã hết hạn",
-        "check the code",
-        "expired"
-    ]
-    
-    # Tuy nhiên, nếu mã đúng, nó thường tự redirect hoặc ra trang "You're all set", "Ready to watch"
-    if any(keyword in text_lower for keyword in error_keywords):
+    # Bước 3: Kiểm tra phản hồi để xem có thành công không
+    # Nếu mã sai, Netflix sẽ tải lại trang nhập mã với form witcher-code
+    if 'data-uia="witcher-code-title"' in resp_post.text or 'tvsignup-title' in resp_post.text:
         raise ValueError("Invalid TV Code: Mã code không hợp lệ hoặc đã hết hạn (chỉ có tác dụng 5 phút).")
+        
+    # Nếu url bị redirect về trang đăng nhập hoặc có lỗi khác
+    if "login" in resp_post.url.lower():
+        raise ValueError("Cookie bị từ chối tính năng TV8.")
         
     return True
