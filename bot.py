@@ -6,6 +6,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from flask import Flask, request, jsonify
 import database as db
 import netflix_token_extractor as extractor
+import netflix_tv_activator as tv_activator
 
 # --- Configurations ---
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -67,11 +68,12 @@ def send_welcome(message):
             "🎬 *Netflix Token Extractor Bot*\n\n"
             "Lệnh cung cấp:\n"
             "🔗 `/get_token` - Rút 1 cookie sinh Link xem Netflix.\n"
-            "🗓 `/diemdanh` - Điểm danh mỗi ngày để lấy được thêm link.\n\n"
+            "📺 `/tv <mã 8 số>` - Kích hoạt đăng nhập trực tiếp trên TV.\n"
+            "🗓 `/diemdanh` - Điểm danh mỗi ngày để lấy được thêm lượt.\n\n"
             "⚡️ *Quyền lợi điểm danh:*\n"
-            "- Mặc định: Được lấy 3 link/ngày.\n"
-            "- Điểm danh ≥ 3 ngày: Được 4 link/ngày.\n"
-            "- Điểm danh ≥ 5 ngày: Được 5 link/ngày.\n"
+            "- Mặc định: Được 3 lượt/ngày.\n"
+            "- Điểm danh ≥ 3 ngày: Được 4 lượt/ngày.\n"
+            "- Điểm danh ≥ 5 ngày: Được 5 lượt/ngày.\n"
         )
     bot.reply_to(message, text, parse_mode="Markdown")
 
@@ -197,6 +199,73 @@ def get_token_command(message):
             return
 
 
+@bot.message_handler(commands=['tv'])
+def tv_command(message):
+    parts = message.text.split()
+    if len(parts) < 2:
+        bot.reply_to(message, "❌ Sai cú pháp! Vui lòng gõ lệnh kèm mã số TV.\n\n*Ví dụ:* `/tv 12345678` hoặc `/tv 1234-5678`", parse_mode="Markdown")
+        return
+        
+    tv_code = parts[1]
+    
+    user_id = message.from_user.id
+    username = message.from_user.username or message.from_user.first_name
+    
+    # 1. Check hạn mức
+    can_gen, remain, cap = db.can_generate_link(user_id, username)
+    if not can_gen and not is_admin(user_id):
+        bot.reply_to(message, f"❌ Hôm nay bạn đã hết hạn mức *{cap} lượt* (dùng chung cho cả Link và TV)!\n🗓 Hãy quay lại vào ngày mai nhé.", parse_mode="Markdown")
+        return
+
+    loading_msg = bot.reply_to(message, f"⏳ Đang xử lý mã TV `{tv_code}`. Quá trình này sẽ mất vài giây...")
+    
+    # 2. Xử lý Cookies và Kích hoạt
+    while True:
+        cookie_doc = db.get_active_cookie()
+        if not cookie_doc:
+            bot.edit_message_text("❌ Không có cookie nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!", 
+                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
+            return
+
+        try:
+            # Thực thi kích hoạt TV
+            tv_activator.activate_tv_code(cookie_doc['cookie_data'], tv_code)
+            
+            # Nếu chạy thành công mà không văng Exception
+            db.increment_link_usage(user_id)
+            remain_after = remain - 1
+            
+            result_text = (
+                f"✅ **Kích hoạt TV Thành Công!**\n\n"
+                f"📺 Hãy nhìn lên màn hình TV của bạn, Netflix đã tự động đăng nhập!\n\n"
+                f"💡 Lượt dùng còn lại trong ngày: `{remain_after}/{cap}`"
+            )
+            bot.edit_message_text(result_text, chat_id=message.chat.id, 
+                                  message_id=loading_msg.message_id, parse_mode="Markdown")
+            return
+            
+        except ValueError as e:
+            err_msg = str(e)
+            if "Invalid TV Code" in err_msg or "hợp lệ" in err_msg or "hết hạn" in err_msg:
+                # Lỗi do chính khách nhập sai mã -> Ko đổi cookie, trả lỗi luôn
+                bot.edit_message_text(f"❌ Lỗi Mã TV: {err_msg}", chat_id=message.chat.id, 
+                                      message_id=loading_msg.message_id)
+                return
+            else:
+                # Lỗi authURL hỏng hoặc bị khoá chức năng -> Chuyển cookie
+                db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                save_dead_cookie_to_file(cookie_doc)
+                bot.edit_message_text("♻️ Cookie không hỗ trợ kích hoạt TV, đang đổi cookie khác...", 
+                                      chat_id=message.chat.id, message_id=loading_msg.message_id)
+                time.sleep(1)
+                
+        except Exception as e:
+            # Lỗi mạng
+            bot.edit_message_text(f"❌ Có lỗi kết nối Netflix: {e}", chat_id=message.chat.id, 
+                                  message_id=loading_msg.message_id)
+            return
+
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('err_'))
 def handle_error_report(call):
     cookie_obj_id = call.data.split('_')[1]
@@ -280,6 +349,7 @@ def setup_menu():
         # Menu chung cho mọi người
         bot.set_my_commands([
             telebot.types.BotCommand("get_token", "Rút 1 link xem Netflix"),
+            telebot.types.BotCommand("tv", "Đăng nhập trực tiếp TV (Nhập mã 8 số)"),
             telebot.types.BotCommand("diemdanh", "Điểm danh hàng ngày"),
             telebot.types.BotCommand("start", "Xem thông tin & Hướng dẫn"),
             telebot.types.BotCommand("ping", "Kiểm tra kết nối Bot")
@@ -288,6 +358,7 @@ def setup_menu():
         if ADMIN_ID:
             bot.set_my_commands([
                 telebot.types.BotCommand("get_token", "Rút 1 link xem Netflix"),
+                telebot.types.BotCommand("tv", "Đăng nhập trực tiếp TV (Nhập mã 8 số)"),
                 telebot.types.BotCommand("diemdanh", "Điểm danh hàng ngày"),
                 telebot.types.BotCommand("stats", "Xem thống kê DB (Admin)"),
                 telebot.types.BotCommand("clear_cookies", "Xoá DB Cookie (Admin)"),
