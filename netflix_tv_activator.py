@@ -52,8 +52,12 @@ def activate_tv_code(cookie_dict, code):
     # ----------------------------------------------------
     post_data = {
         "authURL": auth_url,
-        "code": code,
-        "action": "continue"
+        "tvLoginRendezvousCode": code,
+        "flow": "websiteSignUp",
+        "flowMode": "enterTvLoginRendezvousCode",
+        "withFields": "tvLoginRendezvousCode,isTvUrl2",
+        "action": "nextAction",
+        "code": ""
     }
     
     post_headers = dict(headers)
