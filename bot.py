@@ -274,15 +274,19 @@ def handle_error_report(call):
     cookie_obj_id = call.data.split('_')[1]
     
     # Báo phản hồi lại hộp thoại của User
-    bot.answer_callback_query(call.id, "Đã gửi báo cáo lỗi đến Admin thành công!", show_alert=True)
+    bot.answer_callback_query(call.id, "Đã gửi báo cáo lỗi đến Admin thành công!\nNếu bạn cần hỗ trợ, vui lòng liên hệ Admin: @Mochi_Mochi05", show_alert=True)
     
     # Bắn tin nhắn chéo thẳng tới Admin
     if ADMIN_ID:
-        user_info = f"@{call.from_user.username}" if call.from_user.username else str(call.from_user.first_name)
-        user_info += f" ({call.from_user.id})"
+        first_name = call.from_user.first_name if call.from_user.first_name else "Ẩn danh"
+        username = f"@{call.from_user.username}" if call.from_user.username else "Không có"
+        user_id = call.from_user.id
+        
         report_text = (
             "🚨 *CẢNH BÁO: TOKEN LỖI TỪ THÀNH VIÊN* 🚨\n"
-            f"👤 Người báo cáo: {user_info}\n"
+            f"👤 Người báo cáo: {first_name}\n"
+            f"👤 Username: {username}\n"
+            f"🆔 Telegram ID: `{user_id}`\n"
             f"🔑 ObjectID Cookie lỗi: `{cookie_obj_id}`\n\n"
             "Hãy kiểm tra trong Database Cookie Mongo hoặc xem file trong thư mục `Cookie_loi` nếu chạy ở máy chủ cục bộ!"
         )
