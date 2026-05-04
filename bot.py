@@ -71,9 +71,9 @@ def send_welcome(message):
             "📺 `/tv <mã 8 số>` - Kích hoạt đăng nhập trực tiếp trên TV.\n"
             "🗓 `/diemdanh` - Điểm danh mỗi ngày để lấy được thêm lượt.\n\n"
             "⚡️ *Quyền lợi điểm danh:*\n"
-            "- Mặc định: Được 3 lượt/ngày.\n"
-            "- Điểm danh ≥ 3 ngày: Được 4 lượt/ngày.\n"
-            "- Điểm danh ≥ 5 ngày: Được 5 lượt/ngày.\n"
+            "- Mặc định: Được 5 lượt/ngày.\n"
+            "- Điểm danh ≥ 3 ngày: Được +1 lượt/ngày.\n"
+            "- Điểm danh ≥ 5 ngày: Được +2 lượt/ngày.\n"
         )
     bot.reply_to(message, text, parse_mode="Markdown")
 
@@ -274,7 +274,7 @@ def handle_error_report(call):
     cookie_obj_id = call.data.split('_')[1]
     
     # Báo phản hồi lại hộp thoại của User
-    bot.answer_callback_query(call.id, "Đã gửi báo cáo lỗi đến Admin thành công!\nNếu bạn cần hỗ trợ, vui lòng liên hệ Admin: @Mochi_Mochi05", show_alert=True)
+    bot.answer_callback_query(call.id, "Đã gửi báo cáo lỗi đến Admin thành công!\nNếu bạn cần hỗ trợ, vui lòng liên hệ : @Mochi_Mochi05", show_alert=True)
     
     # Bắn tin nhắn chéo thẳng tới Admin
     if ADMIN_ID:
