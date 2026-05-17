@@ -6,14 +6,14 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from flask import Flask, request, jsonify
 import database as db
 import netflix_token_extractor as extractor
-import requests as http_requests  # Dùng cho gọi API TV service
+import netflix_tv_activator as tv_activator
+import threading
 
 # --- Configurations ---
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 ADMIN_ID = os.environ.get("ADMIN_ID") # VD: 123456789 (Int)
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL") # Dành cho Render
-TV_API_URL = os.environ.get("TV_API_URL", "")  # URL của TV Activator Service
-TV_API_KEY = os.environ.get("TV_API_KEY", "")  # API Key bảo mật
+# BROWSERLESS_TOKEN được đọc trực tiếp bởi netflix_tv_activator.py
 PORT = int(os.environ.get("PORT", 10000))
 
 if ADMIN_ID:
@@ -227,82 +227,70 @@ def tv_command(message):
         bot.reply_to(message, f"❌ Hôm nay bạn đã hết hạn mức *{cap} lượt* (dùng chung cho cả Link và TV)!\n🗓 Hãy quay lại vào ngày mai nhé.", parse_mode="Markdown")
         return
 
-    loading_msg = bot.reply_to(message, f"⏳ Đang xử lý mã TV `{tv_code}`, vui lòng chờ...", parse_mode="Markdown")
+    loading_msg = bot.reply_to(message, f"⏳ Đang kết nối Chrome và xử lý mã TV `{tv_code}`.\n🕐 Quá trình này mất 15-30 giây, vui lòng chờ...", parse_mode="Markdown")
     
-    # 2. Kiểm tra TV API Service
-    if not TV_API_URL:
-        bot.edit_message_text("❌ Tính năng TV chưa được cấu hình. Liên hệ Admin!",
-                              chat_id=message.chat.id, message_id=loading_msg.message_id)
-        return
-    
-    # 3. Xử lý Cookies và Kích hoạt (Giới hạn tối đa 5 lần thử cookie)
-    max_retries = 5
-    for attempt in range(max_retries):
-        cookie_doc = db.get_active_cookie()
-        if not cookie_doc:
-            bot.edit_message_text("❌ Không có cookie nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!", 
-                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
-            return
-
+    # Chạy trong thread nền để webhook không bị timeout
+    def _process_tv():
         try:
-            # Gọi API sang TV Activator Service (Selenium)
-            api_resp = http_requests.post(
-                f"{TV_API_URL.rstrip('/')}/activate",
-                json={"cookie_data": cookie_doc['cookie_data'], "code": tv_code},
-                headers={"X-API-Key": TV_API_KEY},
-                timeout=90  # Selenium cần nhiều thời gian
-            )
-            result = api_resp.json()
-            
-            if result.get("success"):
-                # Thành công!
-                db.increment_link_usage(user_id)
-                remain_after = remain - 1
-                result_text = (
-                    f"✅ **Kích hoạt TV Thành Công!**\n\n"
-                    f"📺 Hãy nhìn lên màn hình TV của bạn, Netflix đã tự động đăng nhập!\n\n"
-                    f"💡 Lượt dùng còn lại trong ngày: `{remain_after}/{cap}`"
-                )
-                bot.edit_message_text(result_text, chat_id=message.chat.id, 
-                                      message_id=loading_msg.message_id, parse_mode="Markdown")
-                return
-            else:
-                error_type = result.get("error", "")
-                error_msg = result.get("message", "Lỗi không xác định")
-                
-                if error_type == "INVALID_CODE":
-                    bot.edit_message_text(f"❌ Lỗi Mã TV: {error_msg}", chat_id=message.chat.id, 
-                                          message_id=loading_msg.message_id)
+            max_retries = 5
+            for attempt in range(max_retries):
+                cookie_doc = db.get_active_cookie()
+                if not cookie_doc:
+                    bot.edit_message_text("❌ Không có cookie nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!", 
+                                          chat_id=message.chat.id, message_id=loading_msg.message_id)
                     return
-                elif error_type == "COOKIE_DEAD":
-                    db.mark_cookie_as_dead(cookie_doc['netflix_id'])
-                    save_dead_cookie_to_file(cookie_doc)
-                    try:
-                        bot.edit_message_text(f"♻️ Cookie #{attempt+1} không hỗ trợ, đang đổi cookie khác...", 
-                                              chat_id=message.chat.id, message_id=loading_msg.message_id)
-                    except Exception:
-                        pass
-                    time.sleep(1)
-                else:
-                    bot.edit_message_text(f"❌ Lỗi: {error_msg}", chat_id=message.chat.id, 
-                                          message_id=loading_msg.message_id)
+
+                try:
+                    tv_activator.activate_tv_code(cookie_doc['cookie_data'], tv_code)
+                    
+                    # Thành công!
+                    db.increment_link_usage(user_id)
+                    remain_after = remain - 1
+                    result_text = (
+                        f"✅ **Kích hoạt TV Thành Công!**\n\n"
+                        f"📺 Hãy nhìn lên màn hình TV của bạn, Netflix đã tự động đăng nhập!\n\n"
+                        f"💡 Lượt dùng còn lại trong ngày: `{remain_after}/{cap}`"
+                    )
+                    bot.edit_message_text(result_text, chat_id=message.chat.id, 
+                                          message_id=loading_msg.message_id, parse_mode="Markdown")
                     return
                     
-        except http_requests.exceptions.Timeout:
-            bot.edit_message_text("❌ Server TV đang quá tải hoặc timeout. Vui lòng thử lại sau!", 
-                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
-            return
+                except ValueError as e:
+                    err_msg = str(e)
+                    if "Invalid TV Code" in err_msg or "hợp lệ" in err_msg or "hết hạn" in err_msg:
+                        bot.edit_message_text(f"❌ Lỗi Mã TV: {err_msg}", chat_id=message.chat.id, 
+                                              message_id=loading_msg.message_id)
+                        return
+                    else:
+                        db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                        save_dead_cookie_to_file(cookie_doc)
+                        try:
+                            bot.edit_message_text(f"♻️ Cookie #{attempt+1} không hỗ trợ, đang đổi cookie khác...", 
+                                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
+                        except Exception:
+                            pass
+                        time.sleep(1)
+                        
+                except Exception as e:
+                    bot.edit_message_text(f"❌ Lỗi kết nối: {e}", chat_id=message.chat.id, 
+                                          message_id=loading_msg.message_id)
+                    return
+            
+            # Hết max retries
+            try:
+                bot.edit_message_text("❌ Đã thử nhiều cookie nhưng không cái nào hỗ trợ TV. Vui lòng thử lại sau!", 
+                                      chat_id=message.chat.id, message_id=loading_msg.message_id)
+            except Exception:
+                pass
         except Exception as e:
-            bot.edit_message_text(f"❌ Có lỗi kết nối: {e}", chat_id=message.chat.id, 
-                                  message_id=loading_msg.message_id)
-            return
+            try:
+                bot.edit_message_text(f"❌ Lỗi không mong đợi: {e}", 
+                                      chat_id=message.chat.id, message_id=loading_msg.message_id)
+            except Exception:
+                pass
     
-    # Thoát for loop mà không return = đã thử hết max_retries cookie
-    try:
-        bot.edit_message_text("❌ Đã thử nhiều cookie nhưng không cái nào hỗ trợ kích hoạt TV. Vui lòng thử lại sau!", 
-                              chat_id=message.chat.id, message_id=loading_msg.message_id)
-    except Exception:
-        pass
+    thread = threading.Thread(target=_process_tv, daemon=True)
+    thread.start()
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('err_'))

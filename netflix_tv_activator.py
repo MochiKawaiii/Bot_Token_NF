@@ -1,101 +1,135 @@
 """
-Netflix TV Activator - Requests Version (Lightweight)
-Gửi POST request trực tiếp lên Netflix /tv8 endpoint.
+Netflix TV Activator - Remote Chrome via Browserless.io
+Chrome chạy trên cloud Browserless.io, Bot chỉ gửi lệnh qua mạng.
+RAM trên Render gần như bằng 0.
 """
-import requests
-import re
-import urllib3
-urllib3.disable_warnings()
+import os
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
+BROWSERLESS_TOKEN = os.environ.get("BROWSERLESS_TOKEN", "")
 TV_URL = "https://www.netflix.com/tv8"
+
 
 def activate_tv_code(cookie_dict, code):
     """
-    Thực hiện luồng GET lấy authURL và POST gửi mã code lên máy chủ.
-    cookie_dict: Dictionary chứa NetflixId và (tuỳ chọn) SecureNetflixId
-    code: Chuỗi 8 chữ số từ Tivi
-    
-    Raises:
-        ValueError: Nếu cookie hỏng hoặc mã code sai.
-        Exception: Lỗi mạng.
+    Kết nối tới Chrome remote trên Browserless.io để kích hoạt TV.
+    Raises ValueError nếu cookie chết hoặc mã sai.
+    Raises Exception nếu lỗi mạng.
     """
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1"
-    }
+    if not BROWSERLESS_TOKEN:
+        raise Exception("BROWSERLESS_TOKEN chưa được cấu hình!")
     
-    # Nạp cookies
-    cookies = {}
-    if "NetflixId" in cookie_dict: cookies["NetflixId"] = cookie_dict["NetflixId"]
-    elif "netflix_id" in cookie_dict: cookies["NetflixId"] = cookie_dict["netflix_id"]
+    driver = None
+    try:
+        # === Kết nối tới Chrome remote ===
+        opts = Options()
+        opts.add_argument("--headless=new")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
+        opts.add_argument("--disable-gpu")
+        opts.add_argument("--disable-extensions")
+        opts.add_argument("--window-size=800,600")
+        opts.add_argument("--disable-blink-features=AutomationControlled")
+        opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
         
-    if "SecureNetflixId" in cookie_dict: cookies["SecureNetflixId"] = cookie_dict["SecureNetflixId"]
-    elif "secure_netflix_id" in cookie_dict: cookies["SecureNetflixId"] = cookie_dict["secure_netflix_id"]
-
-    session = requests.Session()
-    session.headers.update(headers)
-    session.cookies.update(cookies)
-    
-    # Bước 1: Trích xuất authURL từ trang /tv8
-    resp = session.get(TV_URL, timeout=15, verify=False)
-    resp.raise_for_status()
-    
-    match = re.search(r'"authURL":"([^"]+)"', resp.text)
-    if not match:
-        raise ValueError("No authURL: Cookie chết hoặc gói cước không hỗ trợ TV.")
+        # Tắt hình ảnh để nhanh hơn
+        prefs = {"profile.managed_default_content_settings.images": 2}
+        opts.add_experimental_option("prefs", prefs)
         
-    auth_url = match.group(1)
+        # Kết nối tới Browserless.io (Chrome chạy trên cloud của họ)
+        driver = webdriver.Remote(
+            command_executor=f"https://chrome.browserless.io/webdriver?token={BROWSERLESS_TOKEN}",
+            options=opts
+        )
+        driver.set_page_load_timeout(30)
+        driver.set_script_timeout(15)
+        
+        # === Bước 1: Set cookie Netflix ===
+        driver.get("https://www.netflix.com/browse")
+        time.sleep(2)
+        
+        nf_id = cookie_dict.get("NetflixId") or cookie_dict.get("netflix_id", "")
+        sec_id = cookie_dict.get("SecureNetflixId") or cookie_dict.get("secure_netflix_id", "")
+        
+        if nf_id:
+            driver.add_cookie({"name": "NetflixId", "value": nf_id, "domain": ".netflix.com", "path": "/"})
+        if sec_id:
+            driver.add_cookie({"name": "SecureNetflixId", "value": sec_id, "domain": ".netflix.com", "path": "/"})
+        
+        # === Bước 2: Vào trang TV8 ===
+        driver.get(TV_URL)
+        
+        # Chờ ô nhập mã xuất hiện
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[data-uia="pin-number-0"]'))
+            )
+        except TimeoutException:
+            url = driver.current_url.lower()
+            if "login" in url:
+                raise ValueError("Cookie chết hoặc gói cước không hỗ trợ TV.")
+            raise ValueError("Không thể tải trang TV8, cookie có thể đã hết hạn.")
+        
+        # === Bước 3: Nhập từng chữ số ===
+        for i, digit in enumerate(code):
+            try:
+                pin = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, f'input[data-uia="pin-number-{i}"]'))
+                )
+                pin.clear()
+                pin.send_keys(digit)
+                time.sleep(0.15)
+            except Exception:
+                raise Exception(f"Không thể nhập chữ số thứ {i+1}")
+        
+        # === Bước 4: Bấm Submit ===
+        time.sleep(0.5)
+        try:
+            btn = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-uia="witcher-code-submit"]'))
+            )
+            btn.click()
+        except TimeoutException:
+            raise ValueError("Invalid TV Code: Nút xác nhận không kích hoạt được.")
+        
+        # === Bước 5: Chờ kết quả ===
+        time.sleep(6)
+        
+        # Kiểm tra lỗi hiển thị
+        try:
+            err = driver.find_element(By.CSS_SELECTOR, 'div[data-uia="witcher-code-input-error"]')
+            if err.text.strip():
+                raise ValueError(f"Invalid TV Code: {err.text.strip()}")
+        except NoSuchElementException:
+            pass
+        
+        url = driver.current_url.lower()
+        
+        # Thành công: redirect sang success/browse
+        if "success" in url or "browse" in url or "tv/out" in url:
+            return True
+        
+        # Bị redirect về login
+        if "login" in url and "/tv" not in url:
+            raise ValueError("Cookie bị từ chối tính năng TV.")
+        
+        # Form vẫn còn → mã sai
+        try:
+            driver.find_element(By.CSS_SELECTOR, 'input[data-uia="pin-number-0"]')
+            raise ValueError("Invalid TV Code: Mã code không hợp lệ hoặc đã hết hạn (5 phút).")
+        except NoSuchElementException:
+            # Form biến mất → thành công!
+            return True
     
-    # Kiểm tra xem cookie có đăng nhập thành công không (membershipStatus != ANONYMOUS)
-    if '"membershipStatus":"ANONYMOUS"' in resp.text:
-        raise ValueError("No authURL: Cookie chết, Netflix không nhận dạng được tài khoản.")
-    
-    # Bước 2: Gửi POST kích hoạt
-    post_data = {
-        "authURL": auth_url,
-        "tvLoginRendezvousCode": code,
-        "flow": "websiteSignUp",
-        "flowMode": "enterTvLoginRendezvousCode",
-        "withFields": "tvLoginRendezvousCode,isTvUrl2",
-        "action": "nextAction",
-        "code": ""
-    }
-    
-    post_headers = dict(headers)
-    post_headers["Content-Type"] = "application/x-www-form-urlencoded"
-    post_headers["Referer"] = TV_URL
-    post_headers["Origin"] = "https://www.netflix.com"
-    
-    resp_post = session.post(TV_URL, data=post_data, headers=post_headers, 
-                              timeout=15, verify=False, allow_redirects=True)
-    resp_post.raise_for_status()
-    
-    # Bước 3: Phân tích kết quả
-    final_url = resp_post.url.lower()
-    body = resp_post.text
-    
-    # Thành công: Netflix redirect sang /tv/out/success hoặc /browse
-    if "success" in final_url or "browse" in final_url or "tv/out" in final_url:
-        return True
-    
-    # Nếu bị redirect về login → Cookie chết
-    if "/login" in final_url and "/tv" not in final_url:
-        raise ValueError("Cookie bị từ chối tính năng TV8.")
-    
-    # Kiểm tra lỗi trong JavaScript response
-    if '"error_code_entry_failed"' in body or "wasn't right" in body.lower() or "not right" in body.lower():
-        raise ValueError("Invalid TV Code: Mã code không đúng. Hãy thử lại.")
-    
-    # Nếu trang vẫn còn form nhập mã → mã chưa được xử lý hoặc sai
-    if 'data-uia="witcher-code-title"' in body or 'tvsignup-title' in body:
-        # Kiểm tra xem có thông báo lỗi cụ thể không
-        error_match = re.search(r'data-uia="witcher-code-input-error"[^>]*>([^<]+)', body)
-        if error_match and error_match.group(1).strip():
-            raise ValueError(f"Invalid TV Code: {error_match.group(1).strip()}")
-        raise ValueError("Invalid TV Code: Mã code không hợp lệ hoặc đã hết hạn (chỉ có tác dụng 5 phút).")
-    
-    # Nếu trang đã thay đổi hoàn toàn (form biến mất) → Có thể thành công
-    return True
+    finally:
+        if driver:
+            try:
+                driver.quit()
+            except Exception:
+                pass
