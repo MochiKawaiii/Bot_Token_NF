@@ -6,12 +6,14 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from flask import Flask, request, jsonify
 import database as db
 import netflix_token_extractor as extractor
-import netflix_tv_activator as tv_activator
+import requests as http_requests  # Dùng cho gọi API TV service
 
 # --- Configurations ---
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 ADMIN_ID = os.environ.get("ADMIN_ID") # VD: 123456789 (Int)
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL") # Dành cho Render
+TV_API_URL = os.environ.get("TV_API_URL", "")  # URL của TV Activator Service
+TV_API_KEY = os.environ.get("TV_API_KEY", "")  # API Key bảo mật
 PORT = int(os.environ.get("PORT", 10000))
 
 if ADMIN_ID:
@@ -227,7 +229,13 @@ def tv_command(message):
 
     loading_msg = bot.reply_to(message, f"⏳ Đang xử lý mã TV `{tv_code}`, vui lòng chờ...", parse_mode="Markdown")
     
-    # 2. Xử lý Cookies và Kích hoạt (Giới hạn tối đa 5 lần thử cookie)
+    # 2. Kiểm tra TV API Service
+    if not TV_API_URL:
+        bot.edit_message_text("❌ Tính năng TV chưa được cấu hình. Liên hệ Admin!",
+                              chat_id=message.chat.id, message_id=loading_msg.message_id)
+        return
+    
+    # 3. Xử lý Cookies và Kích hoạt (Giới hạn tối đa 5 lần thử cookie)
     max_retries = 5
     for attempt in range(max_retries):
         cookie_doc = db.get_active_cookie()
@@ -237,43 +245,55 @@ def tv_command(message):
             return
 
         try:
-            # Thực thi kích hoạt TV
-            tv_activator.activate_tv_code(cookie_doc['cookie_data'], tv_code)
-            
-            # Nếu chạy thành công mà không văng Exception
-            db.increment_link_usage(user_id)
-            remain_after = remain - 1
-            
-            result_text = (
-                f"✅ **Kích hoạt TV Thành Công!**\n\n"
-                f"📺 Hãy nhìn lên màn hình TV của bạn, Netflix đã tự động đăng nhập!\n\n"
-                f"💡 Lượt dùng còn lại trong ngày: `{remain_after}/{cap}`"
+            # Gọi API sang TV Activator Service (Selenium)
+            api_resp = http_requests.post(
+                f"{TV_API_URL.rstrip('/')}/activate",
+                json={"cookie_data": cookie_doc['cookie_data'], "code": tv_code},
+                headers={"X-API-Key": TV_API_KEY},
+                timeout=90  # Selenium cần nhiều thời gian
             )
-            bot.edit_message_text(result_text, chat_id=message.chat.id, 
-                                  message_id=loading_msg.message_id, parse_mode="Markdown")
-            return
+            result = api_resp.json()
             
-        except ValueError as e:
-            err_msg = str(e)
-            if "Invalid TV Code" in err_msg or "hợp lệ" in err_msg or "hết hạn" in err_msg:
-                # Lỗi do chính khách nhập sai mã -> Ko đổi cookie, trả lỗi luôn
-                bot.edit_message_text(f"❌ Lỗi Mã TV: {err_msg}", chat_id=message.chat.id, 
-                                      message_id=loading_msg.message_id)
+            if result.get("success"):
+                # Thành công!
+                db.increment_link_usage(user_id)
+                remain_after = remain - 1
+                result_text = (
+                    f"✅ **Kích hoạt TV Thành Công!**\n\n"
+                    f"📺 Hãy nhìn lên màn hình TV của bạn, Netflix đã tự động đăng nhập!\n\n"
+                    f"💡 Lượt dùng còn lại trong ngày: `{remain_after}/{cap}`"
+                )
+                bot.edit_message_text(result_text, chat_id=message.chat.id, 
+                                      message_id=loading_msg.message_id, parse_mode="Markdown")
                 return
             else:
-                # Lỗi authURL hỏng hoặc bị khoá chức năng -> Chuyển cookie
-                db.mark_cookie_as_dead(cookie_doc['netflix_id'])
-                save_dead_cookie_to_file(cookie_doc)
-                try:
-                    bot.edit_message_text("♻️ Cookie không hỗ trợ kích hoạt TV, đang đổi cookie khác...", 
-                                          chat_id=message.chat.id, message_id=loading_msg.message_id)
-                except Exception:
-                    pass
-                time.sleep(1)
+                error_type = result.get("error", "")
+                error_msg = result.get("message", "Lỗi không xác định")
                 
+                if error_type == "INVALID_CODE":
+                    bot.edit_message_text(f"❌ Lỗi Mã TV: {error_msg}", chat_id=message.chat.id, 
+                                          message_id=loading_msg.message_id)
+                    return
+                elif error_type == "COOKIE_DEAD":
+                    db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                    save_dead_cookie_to_file(cookie_doc)
+                    try:
+                        bot.edit_message_text(f"♻️ Cookie #{attempt+1} không hỗ trợ, đang đổi cookie khác...", 
+                                              chat_id=message.chat.id, message_id=loading_msg.message_id)
+                    except Exception:
+                        pass
+                    time.sleep(1)
+                else:
+                    bot.edit_message_text(f"❌ Lỗi: {error_msg}", chat_id=message.chat.id, 
+                                          message_id=loading_msg.message_id)
+                    return
+                    
+        except http_requests.exceptions.Timeout:
+            bot.edit_message_text("❌ Server TV đang quá tải hoặc timeout. Vui lòng thử lại sau!", 
+                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
+            return
         except Exception as e:
-            # Lỗi mạng
-            bot.edit_message_text(f"❌ Có lỗi kết nối Netflix: {e}", chat_id=message.chat.id, 
+            bot.edit_message_text(f"❌ Có lỗi kết nối: {e}", chat_id=message.chat.id, 
                                   message_id=loading_msg.message_id)
             return
     
