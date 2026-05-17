@@ -28,8 +28,20 @@ def _create_driver(cookie_dict):
     
     # Trên Render (Linux), Chrome được cài sẵn qua render-build.sh
     # Trên local (Windows), dùng webdriver-manager tự tải
+    # Trên Render, Chrome for Testing được tải vào /opt/render/project/
     chrome_bin = os.environ.get("CHROME_BIN")
     chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
+    
+    # Auto-detect Chrome for Testing trên Render
+    if not chrome_bin:
+        render_chrome = "/opt/render/project/chrome-linux64/chrome"
+        if os.path.isfile(render_chrome):
+            chrome_bin = render_chrome
+    
+    if not chromedriver_path:
+        render_driver = "/opt/render/project/chromedriver-linux64/chromedriver"
+        if os.path.isfile(render_driver):
+            chromedriver_path = render_driver
     
     if chrome_bin:
         chrome_options.binary_location = chrome_bin

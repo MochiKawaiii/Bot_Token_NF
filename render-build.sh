@@ -1,38 +1,28 @@
 #!/usr/bin/env bash
-# render-build.sh - Script cài đặt cho Render Web Service
-# Cài Chrome + ChromeDriver trên server Linux
-
+# render-build.sh - Tải Chrome for Testing (portable, không cần root)
 set -o errexit
 
-echo "=== Cài đặt Google Chrome Stable ==="
-# Tải và cài Google Chrome
-apt-get update -qq && apt-get install -y -qq wget gnupg2
-wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
-apt-get update -qq && apt-get install -y -qq google-chrome-stable
+echo "=== Tải Chrome for Testing (Portable) ==="
+# Lấy phiên bản mới nhất
+LATEST=$(wget -qO- "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE")
+echo "Latest stable version: $LATEST"
 
-# Lấy phiên bản Chrome đã cài
-CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+')
-echo "Chrome installed: $CHROME_VERSION"
+# Tải Chrome for Testing (không cần cài đặt, chạy trực tiếp)
+CHROME_URL="https://storage.googleapis.com/chrome-for-testing-public/${LATEST}/linux64/chrome-linux64.zip"
+echo "Downloading Chrome from: $CHROME_URL"
+wget -q "$CHROME_URL" -O /tmp/chrome.zip
+unzip -o -q /tmp/chrome.zip -d /opt/render/project/
+rm /tmp/chrome.zip
+echo "Chrome installed at: /opt/render/project/chrome-linux64/chrome"
 
-echo "=== Cài đặt ChromeDriver ==="
-# Tải ChromeDriver phù hợp với Chrome version
-CHROMEDRIVER_URL="https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}.0/linux64/chromedriver-linux64.zip"
-# Fallback: dùng endpoint mới nhất nếu URL trên không tồn tại
-wget -q "$CHROMEDRIVER_URL" -O /tmp/chromedriver.zip 2>/dev/null || {
-    echo "Falling back to ChromeDriver latest..."
-    LATEST=$(wget -qO- "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE")
-    wget -q "https://storage.googleapis.com/chrome-for-testing-public/${LATEST}/linux64/chromedriver-linux64.zip" -O /tmp/chromedriver.zip
-}
-
-cd /tmp
-unzip -o chromedriver.zip
-mv chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
-chmod +x /usr/local/bin/chromedriver
-rm -rf chromedriver.zip chromedriver-linux64
-
-echo "ChromeDriver installed at: $(which chromedriver)"
-chromedriver --version
+# Tải ChromeDriver
+DRIVER_URL="https://storage.googleapis.com/chrome-for-testing-public/${LATEST}/linux64/chromedriver-linux64.zip"
+echo "Downloading ChromeDriver from: $DRIVER_URL"
+wget -q "$DRIVER_URL" -O /tmp/chromedriver.zip
+unzip -o -q /tmp/chromedriver.zip -d /opt/render/project/
+chmod +x /opt/render/project/chromedriver-linux64/chromedriver
+rm /tmp/chromedriver.zip
+echo "ChromeDriver installed at: /opt/render/project/chromedriver-linux64/chromedriver"
 
 echo "=== Cài đặt Python dependencies ==="
 pip install --upgrade pip
