@@ -42,9 +42,12 @@ def activate_tv_code(cookie_dict, code):
         prefs = {"profile.managed_default_content_settings.images": 2}
         opts.add_experimental_option("prefs", prefs)
         
+        # Truyền API token qua capability (cách đúng của Browserless.io)
+        opts.set_capability("browserless:token", BROWSERLESS_TOKEN)
+        
         # Kết nối tới Browserless.io (Chrome chạy trên cloud của họ)
         driver = webdriver.Remote(
-            command_executor=f"https://chrome.browserless.io/webdriver?token={BROWSERLESS_TOKEN}",
+            command_executor="https://chrome.browserless.io/webdriver",
             options=opts
         )
         driver.set_page_load_timeout(30)
