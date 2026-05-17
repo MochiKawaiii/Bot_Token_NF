@@ -217,7 +217,7 @@ def tv_command(message):
         bot.reply_to(message, f"❌ Hôm nay bạn đã hết hạn mức *{cap} lượt* (dùng chung cho cả Link và TV)!\n🗓 Hãy quay lại vào ngày mai nhé.", parse_mode="Markdown")
         return
 
-    loading_msg = bot.reply_to(message, f"⏳ Đang mở trình duyệt ảo và nhập mã TV `{tv_code}`.\n🕐 Quá trình này sẽ mất khoảng 15-30 giây, vui lòng kiên nhẫn chờ...", parse_mode="Markdown")
+    loading_msg = bot.reply_to(message, f"⏳ Đang xử lý mã TV `{tv_code}`, vui lòng chờ...", parse_mode="Markdown")
     
     # 2. Xử lý Cookies và Kích hoạt
     while True:
