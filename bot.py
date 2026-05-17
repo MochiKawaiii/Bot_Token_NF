@@ -136,7 +136,8 @@ def get_token_command(message):
     loading_msg = bot.reply_to(message, "⏳ Đang tìm cookie khả dụng và tạo token, vui lòng chờ...")
     
     # 2. Xử lý Cookies và API
-    while True:
+    max_retries = 5
+    for attempt in range(max_retries):
         cookie_doc = db.get_active_cookie()
         if not cookie_doc:
             bot.edit_message_text("❌ Không có cookie nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!", 
@@ -197,6 +198,13 @@ def get_token_command(message):
             bot.edit_message_text(f"❌ Có lỗi khi tạo token: {e}", chat_id=message.chat.id, 
                                   message_id=loading_msg.message_id)
             return
+    
+    # Thoát for loop mà không return = đã thử hết max_retries cookie
+    try:
+        bot.edit_message_text("❌ Đã thử nhiều cookie nhưng không cái nào hoạt động. Vui lòng thử lại sau!", 
+                              chat_id=message.chat.id, message_id=loading_msg.message_id)
+    except Exception:
+        pass
 
 
 @bot.message_handler(commands=['tv'])
@@ -219,8 +227,9 @@ def tv_command(message):
 
     loading_msg = bot.reply_to(message, f"⏳ Đang xử lý mã TV `{tv_code}`, vui lòng chờ...", parse_mode="Markdown")
     
-    # 2. Xử lý Cookies và Kích hoạt
-    while True:
+    # 2. Xử lý Cookies và Kích hoạt (Giới hạn tối đa 5 lần thử cookie)
+    max_retries = 5
+    for attempt in range(max_retries):
         cookie_doc = db.get_active_cookie()
         if not cookie_doc:
             bot.edit_message_text("❌ Không có cookie nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!", 
@@ -267,6 +276,13 @@ def tv_command(message):
             bot.edit_message_text(f"❌ Có lỗi kết nối Netflix: {e}", chat_id=message.chat.id, 
                                   message_id=loading_msg.message_id)
             return
+    
+    # Thoát for loop mà không return = đã thử hết max_retries cookie
+    try:
+        bot.edit_message_text("❌ Đã thử nhiều cookie nhưng không cái nào hỗ trợ kích hoạt TV. Vui lòng thử lại sau!", 
+                              chat_id=message.chat.id, message_id=loading_msg.message_id)
+    except Exception:
+        pass
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('err_'))
@@ -343,13 +359,15 @@ def index():
 
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return '', 200
-    else:
-        return jsonify({"error": "Invalid content-type"}), 403
+    # LUÔN trả 200 để Telegram không retry request bị lỗi (gây vòng lặp chết chóc)
+    try:
+        if request.headers.get('content-type') == 'application/json':
+            json_string = request.get_data().decode('utf-8')
+            update = telebot.types.Update.de_json(json_string)
+            bot.process_new_updates([update])
+    except Exception as e:
+        print(f"⚠️ Webhook error (đã nuốt để tránh retry loop): {e}")
+    return '', 200
 
 def setup_menu():
     try:
