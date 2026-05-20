@@ -173,3 +173,21 @@ def increment_link_usage(user_id):
             "$set": {"last_usage_date": today}
         }
     )
+
+# --- Language Preference ---
+def get_user_lang(user_id):
+    """Lấy ngôn ngữ đã chọn của user. Trả về None nếu chưa chọn."""
+    db = get_db()
+    user = db.users.find_one({"user_id": user_id}, {"lang": 1})
+    if user:
+        return user.get("lang")  # "vi", "en", or None
+    return None
+
+def set_user_lang(user_id, lang_code, username=""):
+    """Lưu ngôn ngữ cho user. Tạo user mới nếu chưa tồn tại."""
+    db = get_db()
+    db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"lang": lang_code, "username": username}},
+        upsert=True
+    )

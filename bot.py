@@ -8,6 +8,7 @@ import database as db
 import netflix_token_extractor as extractor
 import netflix_tv_activator as tv_activator
 import threading
+from lang import get_text
 
 # --- Configurations ---
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -30,10 +31,27 @@ logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 logging.basicConfig(level=logging.DEBUG)
 
-# Lệnh kiểm tra sinh tồn cơ bản
-@bot.message_handler(commands=['ping'])
-def send_ping(message):
-    bot.reply_to(message, "Pong! Tôi vẫn đang sống và nhận tin nhắn!")
+
+# --- Language Helper ---
+def t(user_id, key, **kwargs):
+    """Shortcut to get translated text for a user."""
+    lang = db.get_user_lang(user_id)
+    return get_text(lang, key, **kwargs)
+
+
+def send_language_picker(chat_id, reply_to_id=None):
+    """Gửi inline keyboard chọn ngôn ngữ."""
+    markup = InlineKeyboardMarkup()
+    markup.row(
+        InlineKeyboardButton("🇻🇳 Tiếng Việt", callback_data="lang_vi"),
+        InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")
+    )
+    text = "🌐 Vui lòng chọn ngôn ngữ:\nPlease choose your language:"
+    if reply_to_id:
+        bot.send_message(chat_id, text, reply_markup=markup, reply_to_message_id=reply_to_id)
+    else:
+        bot.send_message(chat_id, text, reply_markup=markup)
+
 
 # --- Helper Logic ---
 def save_dead_cookie_to_file(cookie_doc):
@@ -51,159 +69,176 @@ def is_admin(user_id):
         return True # Nếu không cấu hình Admin, ai cũng có quyền
     return user_id == ADMIN_ID
 
+
 # --- Bot Command Handlers ---
+
+# Lệnh kiểm tra sinh tồn cơ bản
+@bot.message_handler(commands=['ping'])
+def send_ping(message):
+    bot.reply_to(message, t(message.from_user.id, "pong"))
+
+
+@bot.message_handler(commands=['language'])
+def language_command(message):
+    send_language_picker(message.chat.id, reply_to_id=message.message_id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('lang_'))
+def handle_language_select(call):
+    user_id = call.from_user.id
+    username = call.from_user.username or call.from_user.first_name or ""
+    lang_code = call.data.split('_')[1]  # "vi" or "en"
+
+    db.set_user_lang(user_id, lang_code, username)
+
+    # Xác nhận bằng ngôn ngữ vừa chọn
+    confirm_key = f"lang_set_{lang_code}"
+    bot.edit_message_text(
+        get_text(lang_code, confirm_key),
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        parse_mode="Markdown"
+    )
+
+    # Gửi welcome message sau khi chọn ngôn ngữ
+    if is_admin(user_id):
+        welcome_text = get_text(lang_code, "welcome_admin")
+    else:
+        welcome_text = get_text(lang_code, "welcome_user")
+    bot.send_message(call.message.chat.id, welcome_text, parse_mode="Markdown")
+
+
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     user_id = message.from_user.id
+    lang = db.get_user_lang(user_id)
+
+    if lang is None:
+        # User mới, chưa chọn ngôn ngữ → hỏi trước
+        send_language_picker(message.chat.id, reply_to_id=message.message_id)
+        return
+
+    # User đã chọn ngôn ngữ → hiện welcome
     if is_admin(user_id):
-        text = (
-            "👑 *Xin chào CHỦ NHÂN (ADMIN)!*\n\n"
-            "Các lệnh hệ thống của bạn:\n"
-            "🔗 `/get_token` - Rút 1 cookie sinh Link xem Netflix.\n"
-            "📊 `/stats` - Xem số lượng cookie dự trữ trong DB.\n"
-            "🗓 `/diemdanh` - Điểm danh ngày mới.\n"
-            "📝 Nhận dạng trực tiếp: Bạn có thể đưa file `cookie` (.txt, .json) vào trực tiếp đây để nạp.\n"
-            "🗑 `/clear_cookies` - Xoá toàn bộ Database Cookie.\n"
-        )
+        text = t(user_id, "welcome_admin")
     else:
-        text = (
-            "🎬 *Netflix Token Extractor Bot*\n\n"
-            "Lệnh cung cấp:\n"
-            "🔗 `/get_token` - Rút 1 cookie sinh Link xem Netflix.\n"
-            "📺 `/tv <mã 8 số>` - Kích hoạt đăng nhập trực tiếp trên TV.\n"
-            "🗓 `/diemdanh` - Điểm danh mỗi ngày để lấy được thêm lượt.\n\n"
-            "⚡️ *Quyền lợi điểm danh:*\n"
-            "- Mặc định: Được 5 lượt/ngày.\n"
-            "- Điểm danh ≥ 3 ngày: Được +1 lượt/ngày.\n"
-            "- Điểm danh ≥ 5 ngày: Được +2 lượt/ngày.\n"
-        )
+        text = t(user_id, "welcome_user")
     bot.reply_to(message, text, parse_mode="Markdown")
+
 
 @bot.message_handler(commands=['diemdanh'])
 def checkin_command(message):
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
-    
+
     success, streak = db.check_in_user(user_id, username)
     if success:
-        bot.reply_to(message, f"🎉 Bạn đã điểm danh thành công ngày hôm nay!\n🔥 Chuỗi điểm danh hiện tại: *{streak} ngày*", parse_mode="Markdown")
+        bot.reply_to(message, t(user_id, "checkin_success", streak=streak), parse_mode="Markdown")
     else:
-        bot.reply_to(message, f"⚠️ Hôm nay bạn đã điểm danh rồi mà!\n🔥 Nhắc lại chuỗi điểm danh hiện tại: *{streak} ngày*", parse_mode="Markdown")
+        bot.reply_to(message, t(user_id, "checkin_already", streak=streak), parse_mode="Markdown")
+
 
 @bot.message_handler(commands=['stats'])
 def stats_command(message):
-    if not is_admin(message.from_user.id):
-        bot.reply_to(message, "❌ Tính năng này chỉ dành cho Admin để kiểm tra kho phòng máy.")
+    user_id = message.from_user.id
+    if not is_admin(user_id):
+        bot.reply_to(message, t(user_id, "stats_no_perm"))
         return
-        
+
     try:
         s = db.count_stats()
-        text = (
-            "📊 *BÁO CÁO HỆ THỐNG NETFLIX*\n"
-            "---------------------------\n"
-            "👥 *Tình trạng Hoạt Động (User):*\n"
-            f"- Tổng khách đã đăng ký: `{s['users_total']}` người\n"
-            f"- Số khách húp link hôm nay: `{s['users_active_today']}` người\n"
-            "---------------------------\n"
-            "🍪 *Sức khỏe Kho Cookie:*\n"
-            f"- Trữ lượng còn Sống: `{s['cookie_alive']}` / Tổng đã nạp `{s['cookie_total']}` cục\n"
-            f"- 🎟 Tổng số Link đã phát ra: `{s['total_generated']} lượt`\n"
-        )
+        text = t(user_id, "stats_report",
+                 users_total=s['users_total'],
+                 users_active_today=s['users_active_today'],
+                 cookie_alive=s['cookie_alive'],
+                 cookie_total=s['cookie_total'],
+                 total_generated=s['total_generated'])
         bot.reply_to(message, text, parse_mode="Markdown")
     except Exception as e:
-        bot.reply_to(message, f"❌ Lỗi truy cập Database: {e}")
+        bot.reply_to(message, t(user_id, "stats_error", error=e))
+
 
 @bot.message_handler(commands=['clear_cookies'])
 def clear_command(message):
-    if not is_admin(message.from_user.id):
-        bot.reply_to(message, "❌ Bạn không có quyền thực hiện lệnh này.")
+    user_id = message.from_user.id
+    if not is_admin(user_id):
+        bot.reply_to(message, t(user_id, "clear_no_perm"))
         return
     try:
         deleted = db.clear_all_cookies()
-        bot.reply_to(message, f"🗑 Đã xóa {deleted} cookies khỏi cơ sở dữ liệu.")
+        bot.reply_to(message, t(user_id, "clear_done", count=deleted))
     except Exception as e:
-        bot.reply_to(message, f"❌ Lỗi: {e}")
+        bot.reply_to(message, t(user_id, "clear_error", error=e))
+
 
 @bot.message_handler(commands=['get_token'])
 def get_token_command(message):
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
-    
+
     # 1. Check hạn mức
     can_gen, remain, cap = db.can_generate_link(user_id, username)
     if not can_gen and not is_admin(user_id):
-        bot.reply_to(message, f"❌ Hôm nay bạn đã nhận tối đa *{cap} link* của bạn rồi!\n🗓 Hãy quay lại vào ngày mai (sau 00:00) hoặc chăm chỉ gõ `/diemdanh` để được duyệt thêm link nhé.", parse_mode="Markdown")
+        bot.reply_to(message, t(user_id, "quota_exceeded", cap=cap), parse_mode="Markdown")
         return
 
-    loading_msg = bot.reply_to(message, "⏳ Đang tìm cookie khả dụng và tạo token, vui lòng chờ...")
-    
+    loading_msg = bot.reply_to(message, t(user_id, "token_loading"))
+
     # 2. Xử lý Cookies và API
     max_retries = 5
     for attempt in range(max_retries):
         cookie_doc = db.get_active_cookie()
         if not cookie_doc:
-            bot.edit_message_text("❌ Không có cookie nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!", 
+            bot.edit_message_text(t(user_id, "no_cookie"),
                                   chat_id=message.chat.id, message_id=loading_msg.message_id)
             return
 
         netflix_id = cookie_doc['cookie_data'].get('NetflixId') or cookie_doc['cookie_data'].get('netflix_id')
         if not netflix_id:
-            # Dữ liệu hỏng
             db.mark_cookie_as_dead(cookie_doc['netflix_id'])
             save_dead_cookie_to_file(cookie_doc)
             continue
-            
+
         try:
-            # Cố gắng lấy nfToken từ netflix_id
             token, expires = extractor.fetch_nftoken(netflix_id)
             link = extractor.build_nftoken_link(token)
             expiry_str = extractor.format_expiry(expires)
-            
-            # Đánh dấu đã sử dụng (Ngoại trừ admin test tự do)
+
             if not is_admin(user_id):
                 db.increment_link_usage(user_id)
-            
-            # Kết quả trả về
-            result_text = (
-                "✅ *Lấy NFToken thành công!*\n\n"
-                f"🔗 *URL Đăng Nhập:* {link}\n\n"
-                f"⏰ Giờ hết hạn: `{expiry_str}`\n"
-            )
+
+            result_text = t(user_id, "token_success", link=link, expiry=expiry_str)
             if not is_admin(user_id):
                 real_remain = remain - 1 if remain > 0 else 0
-                result_text += f"\n🎟 Lượt lấy link còn lại hôm nay: *{real_remain}/{cap}*\n"
-            
-            # Thêm nút báo lỗi gửi Admin dựa theo Object ID MongoDB
+                result_text += t(user_id, "token_remain", remain=real_remain, cap=cap)
+
             markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("⚠️ Báo lỗi Token này", callback_data=f"err_{str(cookie_doc['_id'])}"))
-            
-            bot.edit_message_text(result_text, chat_id=message.chat.id, 
+            markup.add(InlineKeyboardButton(
+                t(user_id, "btn_report_error"),
+                callback_data=f"err_{str(cookie_doc['_id'])}"
+            ))
+
+            bot.edit_message_text(result_text, chat_id=message.chat.id,
                                   message_id=loading_msg.message_id, parse_mode="Markdown", reply_markup=markup)
             return
-            
+
         except (extractor.requests.exceptions.HTTPError, ValueError) as e:
-            # Thông báo đổi Cookie (Làm xoa dịu người dùng)
             try:
-                bot.edit_message_text(f"♻️ Cookie vừa chọn bị từ chối, đang thử tự động lục cookie khác...", 
+                bot.edit_message_text(t(user_id, "token_switching"),
                                       chat_id=message.chat.id, message_id=loading_msg.message_id)
             except Exception:
                 pass
-                
-            # Đánh dấu chết và trích xuất ra file
             db.mark_cookie_as_dead(cookie_doc['netflix_id'])
             save_dead_cookie_to_file(cookie_doc)
-            # Quá trình while loop lặp lại tìm cookie tiếp
-            time.sleep(1) # Tránh bão API
-            
+            time.sleep(1)
+
         except Exception as e:
-            # Lỗi mạng hoặc lỗi khác
-            bot.edit_message_text(f"❌ Có lỗi khi tạo token: {e}", chat_id=message.chat.id, 
-                                  message_id=loading_msg.message_id)
+            bot.edit_message_text(t(user_id, "token_error", error=e),
+                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
             return
-    
-    # Thoát for loop mà không return = đã thử hết max_retries cookie
+
     try:
-        bot.edit_message_text("❌ Đã thử nhiều cookie nhưng không cái nào hoạt động. Vui lòng thử lại sau!", 
+        bot.edit_message_text(t(user_id, "token_all_dead"),
                               chat_id=message.chat.id, message_id=loading_msg.message_id)
     except Exception:
         pass
@@ -211,24 +246,23 @@ def get_token_command(message):
 
 @bot.message_handler(commands=['tv'])
 def tv_command(message):
+    user_id = message.from_user.id
     parts = message.text.split()
     if len(parts) < 2:
-        bot.reply_to(message, "❌ Sai cú pháp! Vui lòng gõ lệnh kèm mã số TV.\n\n*Ví dụ:* `/tv 12345678` hoặc `/tv 1234-5678`", parse_mode="Markdown")
+        bot.reply_to(message, t(user_id, "tv_syntax"), parse_mode="Markdown")
         return
-        
+
     tv_code = parts[1]
-    
-    user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
-    
+
     # 1. Check hạn mức
     can_gen, remain, cap = db.can_generate_link(user_id, username)
     if not can_gen and not is_admin(user_id):
-        bot.reply_to(message, f"❌ Hôm nay bạn đã hết hạn mức *{cap} lượt* (dùng chung cho cả Link và TV)!\n🗓 Hãy quay lại vào ngày mai nhé.", parse_mode="Markdown")
+        bot.reply_to(message, t(user_id, "tv_quota_exceeded", cap=cap), parse_mode="Markdown")
         return
 
-    loading_msg = bot.reply_to(message, f"⏳ Đang kết nối Chrome và xử lý mã TV `{tv_code}`.\n🕐 Quá trình này mất 15-30 giây, vui lòng chờ...", parse_mode="Markdown")
-    
+    loading_msg = bot.reply_to(message, t(user_id, "tv_loading", code=tv_code), parse_mode="Markdown")
+
     # Chạy trong thread nền để webhook không bị timeout
     def _process_tv():
         try:
@@ -236,129 +270,124 @@ def tv_command(message):
             for attempt in range(max_retries):
                 cookie_doc = db.get_active_cookie()
                 if not cookie_doc:
-                    bot.edit_message_text("❌ Không có cookie nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!", 
+                    bot.edit_message_text(t(user_id, "no_cookie"),
                                           chat_id=message.chat.id, message_id=loading_msg.message_id)
                     return
 
                 try:
                     tv_activator.activate_tv_code(cookie_doc['cookie_data'], tv_code)
-                    
+
                     # Thành công!
                     db.increment_link_usage(user_id)
                     remain_after = remain - 1
-                    result_text = (
-                        f"✅ **Kích hoạt TV Thành Công!**\n\n"
-                        f"📺 Hãy nhìn lên màn hình TV của bạn, Netflix đã tự động đăng nhập!\n\n"
-                        f"💡 Lượt dùng còn lại trong ngày: `{remain_after}/{cap}`"
-                    )
-                    bot.edit_message_text(result_text, chat_id=message.chat.id, 
-                                          message_id=loading_msg.message_id, parse_mode="Markdown")
+                    bot.edit_message_text(
+                        t(user_id, "tv_success", remain=remain_after, cap=cap),
+                        chat_id=message.chat.id,
+                        message_id=loading_msg.message_id, parse_mode="Markdown")
                     return
-                    
+
                 except ValueError as e:
                     err_msg = str(e)
                     if "Invalid TV Code" in err_msg or "hợp lệ" in err_msg or "hết hạn" in err_msg:
-                        bot.edit_message_text(f"❌ Lỗi Mã TV: {err_msg}", chat_id=message.chat.id, 
-                                              message_id=loading_msg.message_id)
+                        bot.edit_message_text(
+                            t(user_id, "tv_invalid_code", error=err_msg),
+                            chat_id=message.chat.id, message_id=loading_msg.message_id)
                         return
                     else:
                         db.mark_cookie_as_dead(cookie_doc['netflix_id'])
                         save_dead_cookie_to_file(cookie_doc)
                         try:
-                            bot.edit_message_text(f"♻️ Cookie #{attempt+1} không hỗ trợ, đang đổi cookie khác...", 
-                                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
+                            bot.edit_message_text(
+                                t(user_id, "tv_cookie_switch", attempt=attempt+1),
+                                chat_id=message.chat.id, message_id=loading_msg.message_id)
                         except Exception:
                             pass
                         time.sleep(1)
-                        
+
                 except Exception as e:
-                    bot.edit_message_text(f"❌ Lỗi kết nối: {e}", chat_id=message.chat.id, 
-                                          message_id=loading_msg.message_id)
+                    bot.edit_message_text(
+                        t(user_id, "tv_connection_error", error=e),
+                        chat_id=message.chat.id, message_id=loading_msg.message_id)
                     return
-            
+
             # Hết max retries
             try:
-                bot.edit_message_text("❌ Đã thử nhiều cookie nhưng không cái nào hỗ trợ TV. Vui lòng thử lại sau!", 
+                bot.edit_message_text(t(user_id, "tv_all_dead"),
                                       chat_id=message.chat.id, message_id=loading_msg.message_id)
             except Exception:
                 pass
         except Exception as e:
             try:
-                bot.edit_message_text(f"❌ Lỗi không mong đợi: {e}", 
-                                      chat_id=message.chat.id, message_id=loading_msg.message_id)
+                bot.edit_message_text(
+                    t(user_id, "tv_unexpected", error=e),
+                    chat_id=message.chat.id, message_id=loading_msg.message_id)
             except Exception:
                 pass
-    
+
     thread = threading.Thread(target=_process_tv, daemon=True)
     thread.start()
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('err_'))
 def handle_error_report(call):
+    user_id = call.from_user.id
     cookie_obj_id = call.data.split('_')[1]
-    
-    # Báo phản hồi lại hộp thoại của User
-    bot.answer_callback_query(call.id, "Đã gửi báo cáo lỗi đến Admin thành công!\nNếu bạn cần hỗ trợ, vui lòng liên hệ : @Mochi_Mochi05", show_alert=True)
-    
-    # Bắn tin nhắn chéo thẳng tới Admin
+
+    bot.answer_callback_query(call.id, t(user_id, "report_sent"), show_alert=True)
+
     if ADMIN_ID:
-        first_name = call.from_user.first_name if call.from_user.first_name else "Ẩn danh"
-        username = f"@{call.from_user.username}" if call.from_user.username else "Không có"
-        user_id = call.from_user.id
-        
-        report_text = (
-            "🚨 *CẢNH BÁO: TOKEN LỖI TỪ THÀNH VIÊN* 🚨\n"
-            f"👤 Người báo cáo: {first_name}\n"
-            f"👤 Username: {username}\n"
-            f"🆔 Telegram ID: `{user_id}`\n"
-            f"🔑 ObjectID Cookie lỗi: `{cookie_obj_id}`\n\n"
-            "Hãy kiểm tra trong Database Cookie Mongo hoặc xem file trong thư mục `Cookie_loi` nếu chạy ở máy chủ cục bộ!"
-        )
+        first_name = call.from_user.first_name if call.from_user.first_name else "N/A"
+        username = f"@{call.from_user.username}" if call.from_user.username else "N/A"
+
+        report_text = t(user_id, "report_admin",
+                        first_name=first_name,
+                        username=username,
+                        user_id=user_id,
+                        cookie_id=cookie_obj_id)
         try:
             bot.send_message(ADMIN_ID, report_text, parse_mode="Markdown")
         except Exception as e:
-            print("Không thể báo cáo tới Admin:", e)
+            print("Cannot report to Admin:", e)
 
 
 @bot.message_handler(content_types=['document'])
 def handle_docs(message):
-    if not is_admin(message.from_user.id):
-        bot.reply_to(message, "❌ Chỉ Admin mới có quyền tải file cookie lên cơ sở dữ liệu.")
+    user_id = message.from_user.id
+    if not is_admin(user_id):
+        bot.reply_to(message, t(user_id, "doc_no_perm"))
         return
 
     try:
         file_info = bot.get_file(message.document.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
-        
-        # Lưu ra file tạm để module extractor có thể parse
+
         temp_filename = f"temp_{message.document.file_id}_{message.document.file_name}"
         with open(temp_filename, 'wb') as new_file:
             new_file.write(downloaded_file)
-            
+
         try:
-            # Parse Cookies dùng hàm đã được viết ở netflix_token_extractor.py
             cookies = extractor.read_cookies(temp_filename)
             os.remove(temp_filename)
         except Exception as parse_e:
             if os.path.exists(temp_filename):
                 os.remove(temp_filename)
-            bot.reply_to(message, f"❌ Lỗi giải mã file Cookie: {parse_e}")
+            bot.reply_to(message, t(user_id, "doc_parse_error", error=parse_e))
             return
 
         netflix_id = cookies.get('NetflixId')
         if not netflix_id:
-            bot.reply_to(message, "❌ Không tìm thấy `NetflixId` hợp lệ trong file này.")
+            bot.reply_to(message, t(user_id, "doc_no_netflix_id"))
             return
 
-        # Lưu vô DB
         success = db.insert_cookie(netflix_id, cookies, source_file=message.document.file_name)
         if success:
-            bot.reply_to(message, f"✅ Đã thêm cookie từ `{message.document.file_name}` vào DB thành công!")
+            bot.reply_to(message, t(user_id, "doc_success", filename=message.document.file_name))
         else:
-            bot.reply_to(message, f"ℹ️ Cookie trong file `{message.document.file_name}` đã từng được lưu vào DB trước đây rồi.")
+            bot.reply_to(message, t(user_id, "doc_duplicate", filename=message.document.file_name))
 
     except Exception as e:
-        bot.reply_to(message, f"❌ Lỗi xử lý file: {e}")
+        bot.reply_to(message, t(user_id, "doc_error", error=e))
+
 
 # --- Flask Server for Render ---
 @app.route('/', methods=['GET', 'HEAD'])
@@ -374,32 +403,34 @@ def webhook():
             update = telebot.types.Update.de_json(json_string)
             bot.process_new_updates([update])
     except Exception as e:
-        print(f"⚠️ Webhook error (đã nuốt để tránh retry loop): {e}")
+        print(f"⚠️ Webhook error (swallowed to prevent retry loop): {e}")
     return '', 200
 
 def setup_menu():
     try:
         # Menu chung cho mọi người
         bot.set_my_commands([
-            telebot.types.BotCommand("get_token", "Rút 1 link xem Netflix"),
-            telebot.types.BotCommand("tv", "Đăng nhập trực tiếp TV (Nhập mã 8 số)"),
-            telebot.types.BotCommand("diemdanh", "Điểm danh hàng ngày"),
-            telebot.types.BotCommand("start", "Xem thông tin & Hướng dẫn"),
-            telebot.types.BotCommand("ping", "Kiểm tra kết nối Bot")
+            telebot.types.BotCommand("get_token", "Get Netflix login link"),
+            telebot.types.BotCommand("tv", "TV Login (8-digit code)"),
+            telebot.types.BotCommand("diemdanh", "Daily check-in"),
+            telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
+            telebot.types.BotCommand("start", "Info & Help"),
+            telebot.types.BotCommand("ping", "Check bot connection")
         ])
         # Menu vip cho Admin
         if ADMIN_ID:
             bot.set_my_commands([
-                telebot.types.BotCommand("get_token", "Rút 1 link xem Netflix"),
-                telebot.types.BotCommand("tv", "Đăng nhập trực tiếp TV (Nhập mã 8 số)"),
-                telebot.types.BotCommand("diemdanh", "Điểm danh hàng ngày"),
-                telebot.types.BotCommand("stats", "Xem thống kê DB (Admin)"),
-                telebot.types.BotCommand("clear_cookies", "Xoá DB Cookie (Admin)"),
-                telebot.types.BotCommand("start", "Xem thông tin & Hướng dẫn"),
-                telebot.types.BotCommand("ping", "Kiểm tra kết nối Bot")
+                telebot.types.BotCommand("get_token", "Get Netflix login link"),
+                telebot.types.BotCommand("tv", "TV Login (8-digit code)"),
+                telebot.types.BotCommand("diemdanh", "Daily check-in"),
+                telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
+                telebot.types.BotCommand("stats", "DB Stats (Admin)"),
+                telebot.types.BotCommand("clear_cookies", "Clear Cookie DB (Admin)"),
+                telebot.types.BotCommand("start", "Info & Help"),
+                telebot.types.BotCommand("ping", "Check bot connection")
             ], scope=telebot.types.BotCommandScopeChat(ADMIN_ID))
     except Exception as e:
-        print("Lỗi cài đặt menu:", e)
+        print("Menu setup error:", e)
 
 def set_webhook():
     if WEBHOOK_URL:
@@ -414,7 +445,7 @@ if __name__ == '__main__':
     if not WEBHOOK_URL:
         bot.remove_webhook()
         bot.infinity_polling()
-    
+
 # Cấu hình webhook khi chạy với gunicorn
 if WEBHOOK_URL:
     set_webhook()
