@@ -61,7 +61,11 @@ TEXTS = {
 
         # === /clear_cookies (Admin) ===
         "clear_no_perm": "❌ Bạn không có quyền thực hiện lệnh này.",
+        "clear_confirm": "⚠️ *BẠN CÓ CHẮC CHẮN MUỐN XÓA TOÀN BỘ COOKIE?*\n\nHành động này không thể hoàn tác!",
+        "clear_confirm_yes": "✅ Xác nhận xóa",
+        "clear_confirm_no": "❌ Hủy bỏ",
         "clear_done": "🗑 Đã xóa {count} cookies khỏi cơ sở dữ liệu.",
+        "clear_cancelled": "👍 Đã hủy. Không có cookie nào bị xóa.",
         "clear_error": "❌ Lỗi: {error}",
 
         # === /get_token ===
@@ -177,7 +181,11 @@ TEXTS = {
 
         # === /clear_cookies (Admin) ===
         "clear_no_perm": "❌ You don't have permission to do this.",
+        "clear_confirm": "⚠️ *ARE YOU SURE YOU WANT TO DELETE ALL COOKIES?*\n\nThis action cannot be undone!",
+        "clear_confirm_yes": "✅ Confirm delete",
+        "clear_confirm_no": "❌ Cancel",
         "clear_done": "🗑 Deleted {count} cookies from the database.",
+        "clear_cancelled": "👍 Cancelled. No cookies were deleted.",
         "clear_error": "❌ Error: {error}",
 
         # === /get_token ===

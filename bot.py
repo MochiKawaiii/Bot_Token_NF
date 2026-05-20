@@ -164,11 +164,37 @@ def clear_command(message):
     if not is_admin(user_id):
         bot.reply_to(message, t(user_id, "clear_no_perm"))
         return
+    # Hỏi xác nhận trước khi xóa
+    markup = InlineKeyboardMarkup()
+    markup.row(
+        InlineKeyboardButton(t(user_id, "clear_confirm_yes"), callback_data="clear_yes"),
+        InlineKeyboardButton(t(user_id, "clear_confirm_no"), callback_data="clear_no")
+    )
+    bot.reply_to(message, t(user_id, "clear_confirm"), parse_mode="Markdown", reply_markup=markup)
+
+
+@bot.callback_query_handler(func=lambda call: call.data in ['clear_yes', 'clear_no'])
+def handle_clear_confirm(call):
+    user_id = call.from_user.id
+    if not is_admin(user_id):
+        bot.answer_callback_query(call.id, t(user_id, "clear_no_perm"))
+        return
+
+    if call.data == "clear_no":
+        bot.edit_message_text(t(user_id, "clear_cancelled"),
+                              chat_id=call.message.chat.id,
+                              message_id=call.message.message_id)
+        return
+
     try:
         deleted = db.clear_all_cookies()
-        bot.reply_to(message, t(user_id, "clear_done", count=deleted))
+        bot.edit_message_text(t(user_id, "clear_done", count=deleted),
+                              chat_id=call.message.chat.id,
+                              message_id=call.message.message_id)
     except Exception as e:
-        bot.reply_to(message, t(user_id, "clear_error", error=e))
+        bot.edit_message_text(t(user_id, "clear_error", error=e),
+                              chat_id=call.message.chat.id,
+                              message_id=call.message.message_id)
 
 
 @bot.message_handler(commands=['get_token'])
