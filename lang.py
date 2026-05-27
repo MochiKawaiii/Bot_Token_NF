@@ -19,7 +19,7 @@ TEXTS = {
             "🔗 `/get_token` - Rút 1 cookie sinh Link xem Netflix.\n"
             "📺 `/tv <mã 8 số>` - Kích hoạt đăng nhập trực tiếp trên TV.\n"
             "📊 `/stats` - Xem số lượng cookie dự trữ trong DB.\n"
-            "🗓 `/diemdanh` - Điểm danh ngày mới.\n"
+            "🗓 `/checkin` - Điểm danh ngày mới.\n"
             "👥 `/ref` - Mời bạn bè để nhận thêm lượt.\n"
             "🌐 `/language` - Đổi ngôn ngữ.\n"
             "📝 Nhận dạng trực tiếp: Bạn có thể đưa file `cookie` (.txt, .json) vào trực tiếp đây để nạp.\n"
@@ -30,7 +30,7 @@ TEXTS = {
             "Lệnh cung cấp:\n"
             "🔗 `/get_token` - Rút 1 cookie sinh Link xem Netflix.\n"
             "📺 `/tv <mã 8 số>` - Kích hoạt đăng nhập trực tiếp trên TV.\n"
-            "🗓 `/diemdanh` - Điểm danh mỗi ngày để lấy được thêm lượt.\n"
+            "🗓 `/checkin` - Điểm danh mỗi ngày để lấy được thêm lượt.\n"
             "👥 `/ref` - Mời bạn bè để nhận thêm lượt.\n"
             "🌐 `/language` - Đổi ngôn ngữ.\n\n"
             "⚡️ *Cách tăng lượt dùng:*\n"
@@ -42,7 +42,7 @@ TEXTS = {
         # === /ping ===
         "pong": "Pong! Tôi vẫn đang sống và nhận tin nhắn!",
 
-        # === /diemdanh ===
+        # === /checkin ===
         "checkin_success": "🎉 Bạn đã điểm danh thành công ngày hôm nay!\n🔥 Chuỗi điểm danh hiện tại: *{streak} ngày*",
         "checkin_already": "⚠️ Hôm nay bạn đã điểm danh rồi mà!\n🔥 Nhắc lại chuỗi điểm danh hiện tại: *{streak} ngày*",
 
@@ -203,7 +203,7 @@ TEXTS = {
             "🔗 `/get_token` - Extract a cookie to generate a Netflix login link.\n"
             "📺 `/tv <8-digit code>` - Activate Netflix login directly on TV.\n"
             "📊 `/stats` - View cookie stock in DB.\n"
-            "🗓 `/diemdanh` - Daily check-in.\n"
+            "🗓 `/checkin` - Daily check-in.\n"
             "👥 `/ref` - Invite friends for bonus uses.\n"
             "🌐 `/language` - Change language.\n"
             "📝 Direct upload: Send a `cookie` file (.txt, .json) here to import.\n"
@@ -214,7 +214,7 @@ TEXTS = {
             "Available commands:\n"
             "🔗 `/get_token` - Get a Netflix login link.\n"
             "📺 `/tv <8-digit code>` - Activate Netflix login directly on TV.\n"
-            "🗓 `/diemdanh` - Daily check-in to earn extra uses.\n"
+            "🗓 `/checkin` - Daily check-in to earn extra uses.\n"
             "👥 `/ref` - Invite friends for bonus uses.\n"
             "🌐 `/language` - Change language.\n\n"
             "⚡️ *How to get more uses:*\n"
@@ -226,7 +226,7 @@ TEXTS = {
         # === /ping ===
         "pong": "Pong! I'm alive and receiving messages!",
 
-        # === /diemdanh ===
+        # === /checkin ===
         "checkin_success": "🎉 You have successfully checked in today!\n🔥 Current streak: *{streak} days*",
         "checkin_already": "⚠️ You have already checked in today!\n🔥 Current streak: *{streak} days*",
 

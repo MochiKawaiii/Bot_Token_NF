@@ -230,8 +230,8 @@ def profile_command(message):
     )
 
 
-@bot.message_handler(commands=['huongdan'])
-def huongdan_command(message):
+@bot.message_handler(commands=['guide'])
+def guide_command(message):
     user_id = message.from_user.id
     file_id = db.get_tutorial_video()
     if file_id:
@@ -250,7 +250,7 @@ def huongdan_command(message):
                      parse_mode="MarkdownV2")
 
 
-@bot.message_handler(commands=['diemdanh'])
+@bot.message_handler(commands=['checkin'])
 def checkin_command(message):
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
@@ -624,10 +624,10 @@ def setup_menu():
         bot.set_my_commands([
             telebot.types.BotCommand("get_token", "Get Netflix login link"),
             telebot.types.BotCommand("tv", "TV Login (8-digit code)"),
-            telebot.types.BotCommand("diemdanh", "Daily check-in"),
+            telebot.types.BotCommand("checkin", "Daily check-in"),
             telebot.types.BotCommand("ref", "Invite friends / Mời bạn bè"),
             telebot.types.BotCommand("profile", "Your profile / Thông tin"),
-            telebot.types.BotCommand("huongdan", "🎬 Tutorial / Hướng dẫn"),
+            telebot.types.BotCommand("guide", "🎬 Tutorial / Hướng dẫn"),
             telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
             telebot.types.BotCommand("start", "Info & Help"),
             telebot.types.BotCommand("ping", "Check bot connection")
@@ -637,10 +637,10 @@ def setup_menu():
             bot.set_my_commands([
                 telebot.types.BotCommand("get_token", "Get Netflix login link"),
                 telebot.types.BotCommand("tv", "TV Login (8-digit code)"),
-                telebot.types.BotCommand("diemdanh", "Daily check-in"),
+                telebot.types.BotCommand("checkin", "Daily check-in"),
                 telebot.types.BotCommand("ref", "Invite friends / Mời bạn bè"),
                 telebot.types.BotCommand("profile", "Your profile / Thông tin"),
-                telebot.types.BotCommand("huongdan", "🎬 Tutorial / Hướng dẫn"),
+                telebot.types.BotCommand("guide", "🎬 Tutorial / Hướng dẫn"),
                 telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
                 telebot.types.BotCommand("stats", "DB Stats (Admin)"),
                 telebot.types.BotCommand("clear_cookies", "Clear Cookie DB (Admin)"),
