@@ -113,8 +113,10 @@ def get_user(user_id, username=""):
             "last_checkin_date": "",
             "usage_today": 0,
             "last_usage_date": "",
+            "total_usage": 0,
             "referral_count": 0,
-            "referred_by": None
+            "referred_by": None,
+            "created_at": get_vietnam_date()
         }
         users_col.insert_one(user)
     return user
@@ -172,16 +174,48 @@ def can_generate_link(user_id, username=""):
     return False, 0, limit
 
 def increment_link_usage(user_id):
-    """Cộng 1 vào lượt sử dụng link của hôm nay"""
+    """Cộng 1 vào lượt sử dụng link của hôm nay + tổng all-time"""
     db = get_db()
     today = get_vietnam_date()
     db.users.update_one(
         {"user_id": user_id},
         {
-            "$inc": {"usage_today": 1},
+            "$inc": {"usage_today": 1, "total_usage": 1},
             "$set": {"last_usage_date": today}
         }
     )
+
+def get_profile(user_id, username=""):
+    """Lấy thông tin profile đầy đủ cho /profile"""
+    user = get_user(user_id, username)
+    today = get_vietnam_date()
+    
+    # Reset usage nếu qua ngày
+    if user.get("last_usage_date") != today:
+        usage_today = 0
+    else:
+        usage_today = user.get("usage_today", 0)
+    
+    ref_count = user.get("referral_count", 0)
+    
+    # Tính limit
+    limit = 5
+    if ref_count >= 3:
+        limit += 2
+    elif ref_count >= 1:
+        limit += 1
+    
+    return {
+        "user_id": user_id,
+        "username": user.get("username", username),
+        "streak": user.get("streak", 0),
+        "usage_today": usage_today,
+        "limit": limit,
+        "remain": max(0, limit - usage_today),
+        "total_usage": user.get("total_usage", 0),
+        "referral_count": ref_count,
+        "created_at": user.get("created_at", "N/A")
+    }
 
 # --- Referral System ---
 def get_referral_count(user_id):

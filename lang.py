@@ -61,6 +61,24 @@ TEXTS = {
         "ref_notify_referrer": "🎊 *Tin vui!* Người dùng *{username}* vừa tham gia qua link mời của bạn!\n👥 Tổng đã mời: *{ref_count}* người\n🎁 Bonus lượt: *+{bonus}/ngày*",
         "ref_self": "❌ Bạn không thể tự mời chính mình!",
 
+        # === /profile ===
+        "profile_info": (
+            "📎 *THÔNG TIN CÁ NHÂN*\n"
+            "---------------------------\n"
+            "👤 Username: *{username}*\n"
+            "🆔 ID: `{user_id}`\n"
+            "📅 Ngày tham gia: `{created_at}`\n"
+            "---------------------------\n"
+            "🔥 Chuỗi điểm danh: *{streak} ngày*\n"
+            "🎟 Lượt hôm nay: *{usage_today}/{limit}* (còn {remain})\n"
+            "📊 Tổng lượt đã dùng: *{total_usage}*\n"
+            "👥 Số người đã mời: *{referral_count}*\n"
+            "🎁 Bonus từ ref: *+{bonus} lượt/ngày*"
+        ),
+
+        # === Rate Limit ===
+        "rate_limit_cooldown": "⏳ Vui lòng chờ *{seconds} giây* trước khi dùng lại lệnh này.",
+
         # === /stats (Admin) ===
         "stats_no_perm": "❌ Tính năng này chỉ dành cho Admin để kiểm tra kho phòng máy.",
         "stats_report": (
@@ -135,6 +153,7 @@ TEXTS = {
         "menu_tv": "Đăng nhập trực tiếp TV (Nhập mã 8 số)",
         "menu_checkin": "Điểm danh hàng ngày",
         "menu_ref": "Mời bạn bè nhận thêm lượt",
+        "menu_profile": "Xem thông tin cá nhân",
         "menu_language": "Đổi ngôn ngữ",
         "menu_start": "Xem thông tin & Hướng dẫn",
         "menu_ping": "Kiểm tra kết nối Bot",
@@ -198,6 +217,24 @@ TEXTS = {
         "ref_welcome_new": "🎉 Welcome! You were invited by another user.",
         "ref_notify_referrer": "🎊 *Great news!* User *{username}* just joined via your invite link!\n👥 Total invited: *{ref_count}*\n🎁 Bonus uses: *+{bonus}/day*",
         "ref_self": "❌ You cannot invite yourself!",
+
+        # === /profile ===
+        "profile_info": (
+            "📎 *YOUR PROFILE*\n"
+            "---------------------------\n"
+            "👤 Username: *{username}*\n"
+            "🆔 ID: `{user_id}`\n"
+            "📅 Joined: `{created_at}`\n"
+            "---------------------------\n"
+            "🔥 Check-in streak: *{streak} days*\n"
+            "🎟 Uses today: *{usage_today}/{limit}* ({remain} left)\n"
+            "📊 Total uses (all-time): *{total_usage}*\n"
+            "👥 Friends invited: *{referral_count}*\n"
+            "🎁 Referral bonus: *+{bonus} uses/day*"
+        ),
+
+        # === Rate Limit ===
+        "rate_limit_cooldown": "⏳ Please wait *{seconds} seconds* before using this command again.",
 
         # === /stats (Admin) ===
         "stats_no_perm": "❌ This feature is for Admin only.",
@@ -273,6 +310,7 @@ TEXTS = {
         "menu_tv": "TV Login (Enter 8-digit code)",
         "menu_checkin": "Daily check-in",
         "menu_ref": "Invite friends for bonus uses",
+        "menu_profile": "View your profile",
         "menu_language": "Change language",
         "menu_start": "Info & Help",
         "menu_ping": "Check bot connection",

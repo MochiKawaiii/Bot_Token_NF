@@ -91,6 +91,26 @@ def is_admin(user_id):
     return user_id == ADMIN_ID
 
 
+# --- Rate Limiter (in-memory, 30s cooldown) ---
+_last_usage = {}  # {user_id: timestamp}
+RATE_LIMIT_SECONDS = 30
+
+def check_rate_limit(user_id):
+    """Trả về số giây còn phải chờ, hoặc 0 nếu OK."""
+    if is_admin(user_id):
+        return 0
+    now = time.time()
+    last = _last_usage.get(user_id, 0)
+    diff = now - last
+    if diff < RATE_LIMIT_SECONDS:
+        return int(RATE_LIMIT_SECONDS - diff) + 1
+    return 0
+
+def mark_rate_limit(user_id):
+    """Ghi nhận thời điểm dùng lệnh."""
+    _last_usage[user_id] = time.time()
+
+
 # --- Bot Command Handlers ---
 
 # Lệnh kiểm tra sinh tồn cơ bản
@@ -187,6 +207,29 @@ def ref_command(message):
     )
 
 
+@bot.message_handler(commands=['profile'])
+def profile_command(message):
+    user_id = message.from_user.id
+    username = message.from_user.username or message.from_user.first_name or "N/A"
+    p = db.get_profile(user_id, username)
+    bonus = get_ref_bonus(p['referral_count'])
+    bot.reply_to(
+        message,
+        t(user_id, "profile_info",
+          username=p['username'],
+          user_id=p['user_id'],
+          created_at=p['created_at'],
+          streak=p['streak'],
+          usage_today=p['usage_today'],
+          limit=p['limit'],
+          remain=p['remain'],
+          total_usage=p['total_usage'],
+          referral_count=p['referral_count'],
+          bonus=bonus),
+        parse_mode="Markdown"
+    )
+
+
 @bot.message_handler(commands=['diemdanh'])
 def checkin_command(message):
     user_id = message.from_user.id
@@ -263,12 +306,19 @@ def get_token_command(message):
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
 
+    # 0. Rate limit check (30s cooldown)
+    wait = check_rate_limit(user_id)
+    if wait > 0:
+        bot.reply_to(message, t(user_id, "rate_limit_cooldown", seconds=wait), parse_mode="Markdown")
+        return
+
     # 1. Check hạn mức (Admin bypass)
     can_gen, remain, cap = db.can_generate_link(user_id, username)
     if not can_gen and not is_admin(user_id):
         bot.reply_to(message, t(user_id, "quota_exceeded", cap=cap), parse_mode="Markdown")
         return
 
+    mark_rate_limit(user_id)
     loading_msg = bot.reply_to(message, t(user_id, "token_loading"))
 
     # 2. Xử lý Cookies và API
@@ -343,12 +393,19 @@ def tv_command(message):
     tv_code = parts[1]
     username = message.from_user.username or message.from_user.first_name
 
+    # 0. Rate limit check (30s cooldown)
+    wait = check_rate_limit(user_id)
+    if wait > 0:
+        bot.reply_to(message, t(user_id, "rate_limit_cooldown", seconds=wait), parse_mode="Markdown")
+        return
+
     # 1. Check hạn mức (Admin bypass)
     can_gen, remain, cap = db.can_generate_link(user_id, username)
     if not can_gen and not is_admin(user_id):
         bot.reply_to(message, t(user_id, "tv_quota_exceeded", cap=cap), parse_mode="Markdown")
         return
 
+    mark_rate_limit(user_id)
     loading_msg = bot.reply_to(message, t(user_id, "tv_loading", code=tv_code), parse_mode="Markdown")
 
     # Chạy trong thread nền để webhook không bị timeout
@@ -503,6 +560,7 @@ def setup_menu():
             telebot.types.BotCommand("tv", "TV Login (8-digit code)"),
             telebot.types.BotCommand("diemdanh", "Daily check-in"),
             telebot.types.BotCommand("ref", "Invite friends / Mời bạn bè"),
+            telebot.types.BotCommand("profile", "Your profile / Thông tin"),
             telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
             telebot.types.BotCommand("start", "Info & Help"),
             telebot.types.BotCommand("ping", "Check bot connection")
@@ -514,6 +572,7 @@ def setup_menu():
                 telebot.types.BotCommand("tv", "TV Login (8-digit code)"),
                 telebot.types.BotCommand("diemdanh", "Daily check-in"),
                 telebot.types.BotCommand("ref", "Invite friends / Mời bạn bè"),
+                telebot.types.BotCommand("profile", "Your profile / Thông tin"),
                 telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
                 telebot.types.BotCommand("stats", "DB Stats (Admin)"),
                 telebot.types.BotCommand("clear_cookies", "Clear Cookie DB (Admin)"),
