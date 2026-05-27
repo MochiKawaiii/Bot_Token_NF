@@ -275,3 +275,21 @@ def set_user_lang(user_id, lang_code, username=""):
         {"$set": {"lang": lang_code, "username": username}},
         upsert=True
     )
+
+# --- Bot Settings (Tutorial Video, etc.) ---
+def get_tutorial_video():
+    """Lấy file_id của video hướng dẫn. Trả về None nếu chưa set."""
+    db = get_db()
+    setting = db.settings.find_one({"key": "tutorial_video"})
+    if setting:
+        return setting.get("file_id")
+    return None
+
+def set_tutorial_video(file_id):
+    """Lưu file_id của video hướng dẫn."""
+    db = get_db()
+    db.settings.update_one(
+        {"key": "tutorial_video"},
+        {"$set": {"file_id": file_id}},
+        upsert=True
+    )

@@ -230,6 +230,19 @@ def profile_command(message):
     )
 
 
+@bot.message_handler(commands=['huongdan'])
+def huongdan_command(message):
+    user_id = message.from_user.id
+    file_id = db.get_tutorial_video()
+    if file_id:
+        bot.send_video(message.chat.id, file_id,
+                       caption=t(user_id, "tutorial_video_caption"),
+                       parse_mode="Markdown",
+                       reply_to_message_id=message.message_id)
+    else:
+        bot.reply_to(message, t(user_id, "tutorial_not_set"))
+
+
 @bot.message_handler(commands=['diemdanh'])
 def checkin_command(message):
     user_id = message.from_user.id
@@ -535,6 +548,52 @@ def handle_docs(message):
         bot.reply_to(message, t(user_id, "doc_error", error=e))
 
 
+# Khi Admin gửi video → hỏi lưu làm tutorial
+_pending_tutorial = {}  # {chat_id: file_id}
+
+@bot.message_handler(content_types=['video'])
+def handle_video(message):
+    user_id = message.from_user.id
+    if not is_admin(user_id):
+        return  # User thường gửi video thì bỏ qua
+
+    file_id = message.video.file_id
+    _pending_tutorial[message.chat.id] = file_id
+
+    markup = InlineKeyboardMarkup()
+    markup.row(
+        InlineKeyboardButton(t(user_id, "tutorial_save_yes"), callback_data="tut_yes"),
+        InlineKeyboardButton(t(user_id, "tutorial_save_no"), callback_data="tut_no")
+    )
+    bot.reply_to(message, t(user_id, "tutorial_save_confirm"), parse_mode="Markdown", reply_markup=markup)
+
+
+@bot.callback_query_handler(func=lambda call: call.data in ['tut_yes', 'tut_no'])
+def handle_tutorial_confirm(call):
+    user_id = call.from_user.id
+    if not is_admin(user_id):
+        return
+
+    if call.data == "tut_no":
+        _pending_tutorial.pop(call.message.chat.id, None)
+        bot.edit_message_text(t(user_id, "tutorial_cancelled"),
+                              chat_id=call.message.chat.id,
+                              message_id=call.message.message_id)
+        return
+
+    file_id = _pending_tutorial.pop(call.message.chat.id, None)
+    if file_id:
+        db.set_tutorial_video(file_id)
+        bot.edit_message_text(t(user_id, "tutorial_saved"),
+                              chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              parse_mode="Markdown")
+    else:
+        bot.edit_message_text("❌ Không tìm thấy video. Hãy gửi lại.",
+                              chat_id=call.message.chat.id,
+                              message_id=call.message.message_id)
+
+
 # --- Flask Server for Render ---
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
@@ -561,6 +620,7 @@ def setup_menu():
             telebot.types.BotCommand("diemdanh", "Daily check-in"),
             telebot.types.BotCommand("ref", "Invite friends / Mời bạn bè"),
             telebot.types.BotCommand("profile", "Your profile / Thông tin"),
+            telebot.types.BotCommand("huongdan", "🎬 Tutorial / Hướng dẫn"),
             telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
             telebot.types.BotCommand("start", "Info & Help"),
             telebot.types.BotCommand("ping", "Check bot connection")
@@ -573,6 +633,7 @@ def setup_menu():
                 telebot.types.BotCommand("diemdanh", "Daily check-in"),
                 telebot.types.BotCommand("ref", "Invite friends / Mời bạn bè"),
                 telebot.types.BotCommand("profile", "Your profile / Thông tin"),
+                telebot.types.BotCommand("huongdan", "🎬 Tutorial / Hướng dẫn"),
                 telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
                 telebot.types.BotCommand("stats", "DB Stats (Admin)"),
                 telebot.types.BotCommand("clear_cookies", "Clear Cookie DB (Admin)"),

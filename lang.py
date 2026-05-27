@@ -79,6 +79,15 @@ TEXTS = {
         # === Rate Limit ===
         "rate_limit_cooldown": "⏳ Vui lòng chờ *{seconds} giây* trước khi dùng lại lệnh này.",
 
+        # === /huongdan (Tutorial) ===
+        "tutorial_video_caption": "🎬 *HƯỚNG DẪN Sử DỤNG BOT*\n\nXem video bên dưới để biết cách dùng bot nhé!",
+        "tutorial_not_set": "❌ Chưa có video hướng dẫn. Admin chưa tải lên.",
+        "tutorial_save_confirm": "🎬 Lưu video này làm *video hướng dẫn* cho mọi người?",
+        "tutorial_save_yes": "✅ Lưu làm Hướng dẫn",
+        "tutorial_save_no": "❌ Không",
+        "tutorial_saved": "✅ Đã lưu video hướng dẫn thành công! User gõ `/huongdan` sẽ nhận được video này.",
+        "tutorial_cancelled": "👍 Đã hủy, video không được lưu.",
+
         # === /stats (Admin) ===
         "stats_no_perm": "❌ Tính năng này chỉ dành cho Admin để kiểm tra kho phòng máy.",
         "stats_report": (
@@ -154,6 +163,7 @@ TEXTS = {
         "menu_checkin": "Điểm danh hàng ngày",
         "menu_ref": "Mời bạn bè nhận thêm lượt",
         "menu_profile": "Xem thông tin cá nhân",
+        "menu_huongdan": "Xem video hướng dẫn",
         "menu_language": "Đổi ngôn ngữ",
         "menu_start": "Xem thông tin & Hướng dẫn",
         "menu_ping": "Kiểm tra kết nối Bot",
@@ -236,6 +246,15 @@ TEXTS = {
         # === Rate Limit ===
         "rate_limit_cooldown": "⏳ Please wait *{seconds} seconds* before using this command again.",
 
+        # === /huongdan (Tutorial) ===
+        "tutorial_video_caption": "🎬 *HOW TO USE THIS BOT*\n\nWatch the video below to learn how to use the bot!",
+        "tutorial_not_set": "❌ No tutorial video available yet. Admin hasn't uploaded one.",
+        "tutorial_save_confirm": "🎬 Save this video as the *tutorial video* for all users?",
+        "tutorial_save_yes": "✅ Save as Tutorial",
+        "tutorial_save_no": "❌ No",
+        "tutorial_saved": "✅ Tutorial video saved! Users can now type `/huongdan` to see it.",
+        "tutorial_cancelled": "👍 Cancelled, video was not saved.",
+
         # === /stats (Admin) ===
         "stats_no_perm": "❌ This feature is for Admin only.",
         "stats_report": (
@@ -311,6 +330,7 @@ TEXTS = {
         "menu_checkin": "Daily check-in",
         "menu_ref": "Invite friends for bonus uses",
         "menu_profile": "View your profile",
+        "menu_huongdan": "Watch tutorial video",
         "menu_language": "Change language",
         "menu_start": "Info & Help",
         "menu_ping": "Check bot connection",
