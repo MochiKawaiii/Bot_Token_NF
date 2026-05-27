@@ -20,6 +20,7 @@ TEXTS = {
             "📺 `/tv <mã 8 số>` - Kích hoạt đăng nhập trực tiếp trên TV.\n"
             "📊 `/stats` - Xem số lượng cookie dự trữ trong DB.\n"
             "🗓 `/diemdanh` - Điểm danh ngày mới.\n"
+            "👥 `/ref` - Mời bạn bè để nhận thêm lượt.\n"
             "🌐 `/language` - Đổi ngôn ngữ.\n"
             "📝 Nhận dạng trực tiếp: Bạn có thể đưa file `cookie` (.txt, .json) vào trực tiếp đây để nạp.\n"
             "🗑 `/clear_cookies` - Xoá toàn bộ Database Cookie.\n"
@@ -30,11 +31,12 @@ TEXTS = {
             "🔗 `/get_token` - Rút 1 cookie sinh Link xem Netflix.\n"
             "📺 `/tv <mã 8 số>` - Kích hoạt đăng nhập trực tiếp trên TV.\n"
             "🗓 `/diemdanh` - Điểm danh mỗi ngày để lấy được thêm lượt.\n"
+            "👥 `/ref` - Mời bạn bè để nhận thêm lượt.\n"
             "🌐 `/language` - Đổi ngôn ngữ.\n\n"
-            "⚡️ *Quyền lợi điểm danh:*\n"
-            "- Mặc định: Được 5 lượt/ngày.\n"
-            "- Điểm danh ≥ 3 ngày: Được +1 lượt/ngày.\n"
-            "- Điểm danh ≥ 5 ngày: Được +2 lượt/ngày.\n"
+            "⚡️ *Cách tăng lượt dùng:*\n"
+            "- Mặc định: 5 lượt/ngày (Link + TV tính chung).\n"
+            "- Mời 1 người: +1 lượt/ngày (vĩnh viễn).\n"
+            "- Mời 3+ người: +2 lượt/ngày (vĩnh viễn).\n"
         ),
 
         # === /ping ===
@@ -43,6 +45,21 @@ TEXTS = {
         # === /diemdanh ===
         "checkin_success": "🎉 Bạn đã điểm danh thành công ngày hôm nay!\n🔥 Chuỗi điểm danh hiện tại: *{streak} ngày*",
         "checkin_already": "⚠️ Hôm nay bạn đã điểm danh rồi mà!\n🔥 Nhắc lại chuỗi điểm danh hiện tại: *{streak} ngày*",
+
+        # === /ref ===
+        "ref_info": (
+            "👥 *CHƯƠNG TRÌNH MỜI BẠN BÈ*\n\n"
+            "📎 Link mời cố định của bạn:\n`{ref_link}`\n\n"
+            "👤 Số người đã mời: *{ref_count}*\n"
+            "🎁 Bonus hiện tại: *+{bonus} lượt/ngày*\n\n"
+            "📋 *Cách thức:*\n"
+            "- Mời 1 người: +1 lượt/ngày\n"
+            "- Mời 3+ người: +2 lượt/ngày\n\n"
+            "💡 Gửi link trên cho bạn bè, khi họ bấm /start qua link đó sẽ tự động được tính!"
+        ),
+        "ref_welcome_new": "🎉 Chào mừng bạn! Bạn được mời bởi một người dùng khác.",
+        "ref_notify_referrer": "🎊 *Tin vui!* Người dùng *{username}* vừa tham gia qua link mời của bạn!\n👥 Tổng đã mời: *{ref_count}* người\n🎁 Bonus lượt: *+{bonus}/ngày*",
+        "ref_self": "❌ Bạn không thể tự mời chính mình!",
 
         # === /stats (Admin) ===
         "stats_no_perm": "❌ Tính năng này chỉ dành cho Admin để kiểm tra kho phòng máy.",
@@ -69,7 +86,7 @@ TEXTS = {
         "clear_error": "❌ Lỗi: {error}",
 
         # === /get_token ===
-        "quota_exceeded": "❌ Hôm nay bạn đã nhận tối đa *{cap} link* của bạn rồi!\n🗓 Hãy quay lại vào ngày mai (sau 00:00) hoặc chăm chỉ gõ `/diemdanh` để được duyệt thêm link nhé.",
+        "quota_exceeded": "❌ Hôm nay bạn đã dùng hết *{cap} lượt* rồi!\n🗓 Hãy quay lại vào ngày mai hoặc gõ `/ref` để mời bạn bè nhận thêm lượt nhé.",
         "token_loading": "⏳ Đang tìm cookie khả dụng và tạo token, vui lòng chờ...",
         "no_cookie": "❌ Không có cookie nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!",
         "token_switching": "♻️ Cookie vừa chọn bị từ chối, đang thử tự động lục cookie khác...",
@@ -78,14 +95,14 @@ TEXTS = {
             "🔗 *URL Đăng Nhập:* {link}\n\n"
             "⏰ Giờ hết hạn: `{expiry}`\n"
         ),
-        "token_remain": "\n🎟 Lượt lấy link còn lại hôm nay: *{remain}/{cap}*\n",
+        "token_remain": "\n🎟 Lượt còn lại hôm nay: *{remain}/{cap}*\n",
         "token_error": "❌ Có lỗi khi tạo token: {error}",
         "token_all_dead": "❌ Đã thử nhiều cookie nhưng không cái nào hoạt động. Vui lòng thử lại sau!",
         "btn_report_error": "⚠️ Báo lỗi Token này",
 
         # === /tv ===
         "tv_syntax": "❌ Sai cú pháp! Vui lòng gõ lệnh kèm mã số TV.\n\n*Ví dụ:* `/tv 12345678` hoặc `/tv 1234-5678`",
-        "tv_quota_exceeded": "❌ Hôm nay bạn đã hết hạn mức *{cap} lượt* (dùng chung cho cả Link và TV)!\n🗓 Hãy quay lại vào ngày mai nhé.",
+        "tv_quota_exceeded": "❌ Hôm nay bạn đã hết *{cap} lượt* (Link + TV dùng chung)!\n🗓 Hãy quay lại vào ngày mai hoặc `/ref` mời bạn bè nhé.",
         "tv_loading": "⏳ Đang kết nối Chrome và xử lý mã TV `{code}`.\n🕐 Quá trình này mất 15-30 giây, vui lòng chờ...",
         "tv_success": "✅ **Kích hoạt TV Thành Công!**\n\n📺 Hãy nhìn lên màn hình TV của bạn, Netflix đã tự động đăng nhập!\n\n💡 Lượt dùng còn lại trong ngày: `{remain}/{cap}`",
         "tv_invalid_code": "❌ Lỗi Mã TV: {error}",
@@ -117,6 +134,7 @@ TEXTS = {
         "menu_get_token": "Rút 1 link xem Netflix",
         "menu_tv": "Đăng nhập trực tiếp TV (Nhập mã 8 số)",
         "menu_checkin": "Điểm danh hàng ngày",
+        "menu_ref": "Mời bạn bè nhận thêm lượt",
         "menu_language": "Đổi ngôn ngữ",
         "menu_start": "Xem thông tin & Hướng dẫn",
         "menu_ping": "Kiểm tra kết nối Bot",
@@ -140,6 +158,7 @@ TEXTS = {
             "📺 `/tv <8-digit code>` - Activate Netflix login directly on TV.\n"
             "📊 `/stats` - View cookie stock in DB.\n"
             "🗓 `/diemdanh` - Daily check-in.\n"
+            "👥 `/ref` - Invite friends for bonus uses.\n"
             "🌐 `/language` - Change language.\n"
             "📝 Direct upload: Send a `cookie` file (.txt, .json) here to import.\n"
             "🗑 `/clear_cookies` - Clear all cookies from Database.\n"
@@ -150,11 +169,12 @@ TEXTS = {
             "🔗 `/get_token` - Get a Netflix login link.\n"
             "📺 `/tv <8-digit code>` - Activate Netflix login directly on TV.\n"
             "🗓 `/diemdanh` - Daily check-in to earn extra uses.\n"
+            "👥 `/ref` - Invite friends for bonus uses.\n"
             "🌐 `/language` - Change language.\n\n"
-            "⚡️ *Check-in benefits:*\n"
-            "- Default: 5 uses/day.\n"
-            "- 3+ day streak: +1 use/day.\n"
-            "- 5+ day streak: +2 uses/day.\n"
+            "⚡️ *How to get more uses:*\n"
+            "- Default: 5 uses/day (Link + TV shared).\n"
+            "- Invite 1 friend: +1 use/day (permanent).\n"
+            "- Invite 3+ friends: +2 uses/day (permanent).\n"
         ),
 
         # === /ping ===
@@ -163,6 +183,21 @@ TEXTS = {
         # === /diemdanh ===
         "checkin_success": "🎉 You have successfully checked in today!\n🔥 Current streak: *{streak} days*",
         "checkin_already": "⚠️ You have already checked in today!\n🔥 Current streak: *{streak} days*",
+
+        # === /ref ===
+        "ref_info": (
+            "👥 *REFERRAL PROGRAM*\n\n"
+            "📎 Your permanent invite link:\n`{ref_link}`\n\n"
+            "👤 Friends invited: *{ref_count}*\n"
+            "🎁 Current bonus: *+{bonus} uses/day*\n\n"
+            "📋 *How it works:*\n"
+            "- Invite 1 friend: +1 use/day\n"
+            "- Invite 3+ friends: +2 uses/day\n\n"
+            "💡 Share the link above — when they press /start through your link, it counts automatically!"
+        ),
+        "ref_welcome_new": "🎉 Welcome! You were invited by another user.",
+        "ref_notify_referrer": "🎊 *Great news!* User *{username}* just joined via your invite link!\n👥 Total invited: *{ref_count}*\n🎁 Bonus uses: *+{bonus}/day*",
+        "ref_self": "❌ You cannot invite yourself!",
 
         # === /stats (Admin) ===
         "stats_no_perm": "❌ This feature is for Admin only.",
@@ -189,7 +224,7 @@ TEXTS = {
         "clear_error": "❌ Error: {error}",
 
         # === /get_token ===
-        "quota_exceeded": "❌ You've used all *{cap} links* for today!\n🗓 Come back tomorrow (after 00:00) or use `/diemdanh` daily to earn more.",
+        "quota_exceeded": "❌ You've used all *{cap} uses* for today!\n🗓 Come back tomorrow or use `/ref` to invite friends for bonus uses.",
         "token_loading": "⏳ Finding an available cookie and generating token, please wait...",
         "no_cookie": "❌ No active cookies in the Database. Contact Admin to add more!",
         "token_switching": "♻️ Cookie rejected, automatically trying another one...",
@@ -205,7 +240,7 @@ TEXTS = {
 
         # === /tv ===
         "tv_syntax": "❌ Wrong syntax! Please include the TV code.\n\n*Example:* `/tv 12345678` or `/tv 1234-5678`",
-        "tv_quota_exceeded": "❌ You've used all *{cap} uses* today (shared between Link and TV)!\n🗓 Please come back tomorrow.",
+        "tv_quota_exceeded": "❌ You've used all *{cap} uses* today (Link + TV shared)!\n🗓 Come back tomorrow or `/ref` to invite friends.",
         "tv_loading": "⏳ Connecting to Chrome and processing TV code `{code}`.\n🕐 This takes 15-30 seconds, please wait...",
         "tv_success": "✅ **TV Activation Successful!**\n\n📺 Check your TV screen — Netflix has been logged in automatically!\n\n💡 Remaining uses today: `{remain}/{cap}`",
         "tv_invalid_code": "❌ TV Code Error: {error}",
@@ -237,6 +272,7 @@ TEXTS = {
         "menu_get_token": "Get a Netflix login link",
         "menu_tv": "TV Login (Enter 8-digit code)",
         "menu_checkin": "Daily check-in",
+        "menu_ref": "Invite friends for bonus uses",
         "menu_language": "Change language",
         "menu_start": "Info & Help",
         "menu_ping": "Check bot connection",

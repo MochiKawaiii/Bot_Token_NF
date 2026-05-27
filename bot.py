@@ -16,6 +16,7 @@ ADMIN_ID = os.environ.get("ADMIN_ID") # VD: 123456789 (Int)
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL") # Dành cho Render
 # BROWSERLESS_TOKEN được đọc trực tiếp bởi netflix_tv_activator.py
 PORT = int(os.environ.get("PORT", 10000))
+BOT_USERNAME = None  # Sẽ được set tự động khi khởi động
 
 if ADMIN_ID:
     ADMIN_ID = int(ADMIN_ID)
@@ -51,6 +52,26 @@ def send_language_picker(chat_id, reply_to_id=None):
         bot.send_message(chat_id, text, reply_markup=markup, reply_to_message_id=reply_to_id)
     else:
         bot.send_message(chat_id, text, reply_markup=markup)
+
+
+def get_bot_username():
+    """Lấy username của bot (cache)."""
+    global BOT_USERNAME
+    if not BOT_USERNAME:
+        try:
+            BOT_USERNAME = bot.get_me().username
+        except Exception:
+            BOT_USERNAME = "Netflix_Loginlink_bot"
+    return BOT_USERNAME
+
+
+def get_ref_bonus(ref_count):
+    """Tính bonus lượt từ số referral."""
+    if ref_count >= 3:
+        return 2
+    elif ref_count >= 1:
+        return 1
+    return 0
 
 
 # --- Helper Logic ---
@@ -111,6 +132,31 @@ def handle_language_select(call):
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     user_id = message.from_user.id
+    username = message.from_user.username or message.from_user.first_name or ""
+
+    # Xử lý deep link referral: /start ref_123456789
+    text_parts = message.text.split()
+    if len(text_parts) > 1 and text_parts[1].startswith("ref_"):
+        try:
+            referrer_id = int(text_parts[1].replace("ref_", ""))
+            if referrer_id != user_id:
+                success = db.process_referral(user_id, referrer_id, username)
+                if success:
+                    # Thông báo cho người mời
+                    ref_count = db.get_referral_count(referrer_id)
+                    bonus = get_ref_bonus(ref_count)
+                    try:
+                        bot.send_message(
+                            referrer_id,
+                            t(referrer_id, "ref_notify_referrer",
+                              username=username, ref_count=ref_count, bonus=bonus),
+                            parse_mode="Markdown"
+                        )
+                    except Exception:
+                        pass
+        except (ValueError, Exception):
+            pass
+
     lang = db.get_user_lang(user_id)
 
     if lang is None:
@@ -124,6 +170,21 @@ def send_welcome(message):
     else:
         text = t(user_id, "welcome_user")
     bot.reply_to(message, text, parse_mode="Markdown")
+
+
+@bot.message_handler(commands=['ref'])
+def ref_command(message):
+    user_id = message.from_user.id
+    bot_name = get_bot_username()
+    ref_link = f"https://t.me/{bot_name}?start=ref_{user_id}"
+    ref_count = db.get_referral_count(user_id)
+    bonus = get_ref_bonus(ref_count)
+
+    bot.reply_to(
+        message,
+        t(user_id, "ref_info", ref_link=ref_link, ref_count=ref_count, bonus=bonus),
+        parse_mode="Markdown"
+    )
 
 
 @bot.message_handler(commands=['diemdanh'])
@@ -202,7 +263,7 @@ def get_token_command(message):
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.first_name
 
-    # 1. Check hạn mức
+    # 1. Check hạn mức (Admin bypass)
     can_gen, remain, cap = db.can_generate_link(user_id, username)
     if not can_gen and not is_admin(user_id):
         bot.reply_to(message, t(user_id, "quota_exceeded", cap=cap), parse_mode="Markdown")
@@ -230,6 +291,7 @@ def get_token_command(message):
             link = extractor.build_nftoken_link(token)
             expiry_str = extractor.format_expiry(expires)
 
+            # Admin KHÔNG bị tính lượt
             if not is_admin(user_id):
                 db.increment_link_usage(user_id)
 
@@ -281,7 +343,7 @@ def tv_command(message):
     tv_code = parts[1]
     username = message.from_user.username or message.from_user.first_name
 
-    # 1. Check hạn mức
+    # 1. Check hạn mức (Admin bypass)
     can_gen, remain, cap = db.can_generate_link(user_id, username)
     if not can_gen and not is_admin(user_id):
         bot.reply_to(message, t(user_id, "tv_quota_exceeded", cap=cap), parse_mode="Markdown")
@@ -303,9 +365,10 @@ def tv_command(message):
                 try:
                     tv_activator.activate_tv_code(cookie_doc['cookie_data'], tv_code)
 
-                    # Thành công!
-                    db.increment_link_usage(user_id)
-                    remain_after = remain - 1
+                    # Thành công! Admin KHÔNG bị tính lượt
+                    if not is_admin(user_id):
+                        db.increment_link_usage(user_id)
+                    remain_after = remain - 1 if not is_admin(user_id) else remain
                     bot.edit_message_text(
                         t(user_id, "tv_success", remain=remain_after, cap=cap),
                         chat_id=message.chat.id,
@@ -439,6 +502,7 @@ def setup_menu():
             telebot.types.BotCommand("get_token", "Get Netflix login link"),
             telebot.types.BotCommand("tv", "TV Login (8-digit code)"),
             telebot.types.BotCommand("diemdanh", "Daily check-in"),
+            telebot.types.BotCommand("ref", "Invite friends / Mời bạn bè"),
             telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
             telebot.types.BotCommand("start", "Info & Help"),
             telebot.types.BotCommand("ping", "Check bot connection")
@@ -449,6 +513,7 @@ def setup_menu():
                 telebot.types.BotCommand("get_token", "Get Netflix login link"),
                 telebot.types.BotCommand("tv", "TV Login (8-digit code)"),
                 telebot.types.BotCommand("diemdanh", "Daily check-in"),
+                telebot.types.BotCommand("ref", "Invite friends / Mời bạn bè"),
                 telebot.types.BotCommand("language", "🌐 Language / Ngôn ngữ"),
                 telebot.types.BotCommand("stats", "DB Stats (Admin)"),
                 telebot.types.BotCommand("clear_cookies", "Clear Cookie DB (Admin)"),

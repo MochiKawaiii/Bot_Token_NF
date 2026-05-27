@@ -112,7 +112,9 @@ def get_user(user_id, username=""):
             "streak": 0,
             "last_checkin_date": "",
             "usage_today": 0,
-            "last_usage_date": ""
+            "last_usage_date": "",
+            "referral_count": 0,
+            "referred_by": None
         }
         users_col.insert_one(user)
     return user
@@ -136,8 +138,8 @@ def check_in_user(user_id, username=""):
 
 def can_generate_link(user_id, username=""):
     """
-    Kéo thông tin ra và kiểm tra logic 1-2-3.
-    Trả về bộ 3 tham số: (Can_generate_boolean, remain_quota, total_limit)
+    Kiểm tra quota. Tính cả bonus từ referral.
+    Trả về bộ 3: (Can_generate_boolean, remain_quota, total_limit)
     """
     user = get_user(user_id, username)
     today = get_vietnam_date()
@@ -154,9 +156,16 @@ def can_generate_link(user_id, username=""):
         usage = user.get("usage_today", 0)
         
     streak = user.get("streak", 0)
+    referral_count = user.get("referral_count", 0)
     
-    # Tính hạn mức tối đa
+    # Tính hạn mức tối đa: base 5
     limit = 5
+    
+    # Bonus từ referral: 1 ref = +1, 3+ ref = +2
+    if referral_count >= 3:
+        limit += 2
+    elif referral_count >= 1:
+        limit += 1
         
     if usage < limit:
         return True, limit - usage, limit
@@ -173,6 +182,47 @@ def increment_link_usage(user_id):
             "$set": {"last_usage_date": today}
         }
     )
+
+# --- Referral System ---
+def get_referral_count(user_id):
+    """Lấy số người đã mời thành công"""
+    user = get_user(user_id)
+    return user.get("referral_count", 0)
+
+def process_referral(new_user_id, referrer_id, username=""):
+    """
+    Xử lý khi user mới join qua referral link.
+    Trả về: True nếu thành công, False nếu đã tồn tại hoặc tự mời mình.
+    """
+    if new_user_id == referrer_id:
+        return False  # Không tự mời mình
+    
+    db = get_db()
+    user = db.users.find_one({"user_id": new_user_id})
+    
+    # User đã tồn tại trong DB → không tính ref
+    if user:
+        return False
+    
+    # Tạo user mới với referred_by
+    db.users.insert_one({
+        "user_id": new_user_id,
+        "username": username,
+        "streak": 0,
+        "last_checkin_date": "",
+        "usage_today": 0,
+        "last_usage_date": "",
+        "referral_count": 0,
+        "referred_by": referrer_id
+    })
+    
+    # +1 referral_count cho người mời
+    db.users.update_one(
+        {"user_id": referrer_id},
+        {"$inc": {"referral_count": 1}}
+    )
+    
+    return True
 
 # --- Language Preference ---
 def get_user_lang(user_id):
