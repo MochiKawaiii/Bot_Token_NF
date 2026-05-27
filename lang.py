@@ -80,8 +80,25 @@ TEXTS = {
         "rate_limit_cooldown": "⏳ Vui lòng chờ *{seconds} giây* trước khi dùng lại lệnh này.",
 
         # === /huongdan (Tutorial) ===
-        "tutorial_video_caption": "🎬 *HƯỚNG DẪN Sử DỤNG BOT*\n\nXem video bên dưới để biết cách dùng bot nhé!",
-        "tutorial_not_set": "❌ Chưa có video hướng dẫn. Admin chưa tải lên.",
+        "tutorial_video_caption": "📱 *HƯỚNG DẪN TRÊN ĐIỆN THOẠI*\n\nXem video bên dưới để biết cách dùng trên điện thoại nhé!",
+        "tutorial_text_guide": (
+            "💻 *HƯỚNG DẪN TRÊN MÁY TÍNH & TV*\n"
+            "---------------------------\n\n"
+            "🖥 *Đăng nhập trên trình duyệt (PC):*\n"
+            "1\\. Gõ lệnh `/get_token`\n"
+            "2\\. Bot sẽ gửi cho bạn một *link đăng nhập*\n"
+            "3\\. Copy link đó và dán vào trình duyệt\n"
+            "4\\. Netflix sẽ tự động đăng nhập cho bạn\n\n"
+            "📺 *Đăng nhập trên TV:*\n"
+            "1\\. Trên TV, mở Netflix và chọn \"Sign in on the web\"\n"
+            "2\\. TV sẽ hiển mã 8 chữ số\n"
+            "3\\. Gõ lệnh `/tv <mã 8 số>` \n   Ví dụ: `/tv 12345678`\n"
+            "4\\. Chờ 15\\-30 giây, TV sẽ tự động đăng nhập"
+        ),
+        "tutorial_no_video": (
+            "🎬 *HƯỚNG DẪN Sử DỤNG BOT*\n\n"
+            "❌ Chưa có video hướng dẫn trên điện thoại\\. Admin chưa tải lên\\."
+        ),
         "tutorial_save_confirm": "🎬 Lưu video này làm *video hướng dẫn* cho mọi người?",
         "tutorial_save_yes": "✅ Lưu làm Hướng dẫn",
         "tutorial_save_no": "❌ Không",
@@ -247,8 +264,25 @@ TEXTS = {
         "rate_limit_cooldown": "⏳ Please wait *{seconds} seconds* before using this command again.",
 
         # === /huongdan (Tutorial) ===
-        "tutorial_video_caption": "🎬 *HOW TO USE THIS BOT*\n\nWatch the video below to learn how to use the bot!",
-        "tutorial_not_set": "❌ No tutorial video available yet. Admin hasn't uploaded one.",
+        "tutorial_video_caption": "📱 *TUTORIAL FOR MOBILE*\n\nWatch the video below to learn how to use on your phone!",
+        "tutorial_text_guide": (
+            "💻 *GUIDE FOR PC & TV*\n"
+            "---------------------------\n\n"
+            "🖥 *Login on browser \\(PC\\):*\n"
+            "1\\. Type `/get_token`\n"
+            "2\\. Bot will send you a *login link*\n"
+            "3\\. Copy the link and paste it in your browser\n"
+            "4\\. Netflix will log you in automatically\n\n"
+            "📺 *Login on TV:*\n"
+            "1\\. On your TV, open Netflix and select \"Sign in on the web\"\n"
+            "2\\. TV will show an 8\\-digit code\n"
+            "3\\. Type `/tv <8\\-digit code>`\n   Example: `/tv 12345678`\n"
+            "4\\. Wait 15\\-30 seconds, TV will log in automatically"
+        ),
+        "tutorial_no_video": (
+            "🎬 *HOW TO USE THIS BOT*\n\n"
+            "❌ No mobile tutorial video available yet\\. Admin hasn't uploaded one\\."
+        ),
         "tutorial_save_confirm": "🎬 Save this video as the *tutorial video* for all users?",
         "tutorial_save_yes": "✅ Save as Tutorial",
         "tutorial_save_no": "❌ No",
