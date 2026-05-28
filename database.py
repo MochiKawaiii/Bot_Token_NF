@@ -119,6 +119,27 @@ def get_user(user_id, username=""):
             "created_at": get_vietnam_date()
         }
         users_col.insert_one(user)
+    else:
+        # Tự động cập nhật các trường còn thiếu nếu có (Self-healing DB)
+        updated = False
+        updates = {}
+        defaults = {
+            "streak": 0,
+            "last_checkin_date": "",
+            "usage_today": 0,
+            "last_usage_date": "",
+            "total_usage": 0,
+            "referral_count": 0,
+            "referred_by": None,
+            "created_at": "N/A"
+        }
+        for key, val in defaults.items():
+            if key not in user:
+                user[key] = val
+                updates[key] = val
+                updated = True
+        if updated:
+            users_col.update_one({"user_id": user_id}, {"$set": updates})
     return user
 
 def check_in_user(user_id, username=""):
@@ -246,8 +267,10 @@ def process_referral(new_user_id, referrer_id, username=""):
         "last_checkin_date": "",
         "usage_today": 0,
         "last_usage_date": "",
+        "total_usage": 0,
         "referral_count": 0,
-        "referred_by": referrer_id
+        "referred_by": referrer_id,
+        "created_at": get_vietnam_date()
     })
     
     # +1 referral_count cho người mời
@@ -272,7 +295,19 @@ def set_user_lang(user_id, lang_code, username=""):
     db = get_db()
     db.users.update_one(
         {"user_id": user_id},
-        {"$set": {"lang": lang_code, "username": username}},
+        {
+            "$set": {"lang": lang_code, "username": username},
+            "$setOnInsert": {
+                "streak": 0,
+                "last_checkin_date": "",
+                "usage_today": 0,
+                "last_usage_date": "",
+                "total_usage": 0,
+                "referral_count": 0,
+                "referred_by": None,
+                "created_at": get_vietnam_date()
+            }
+        },
         upsert=True
     )
 
