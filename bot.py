@@ -217,7 +217,7 @@ def profile_command(message):
         message,
         t(user_id, "profile_info",
           username=p['username'],
-          user_id=p['user_id'],
+          uid=p['user_id'],
           created_at=p['created_at'],
           streak=p['streak'],
           usage_today=p['usage_today'],
