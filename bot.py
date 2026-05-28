@@ -236,18 +236,27 @@ def guide_command(message):
     file_id = db.get_tutorial_video()
     if file_id:
         # Gửi video hướng dẫn điện thoại
-        bot.send_video(message.chat.id, file_id,
-                       caption=t(user_id, "tutorial_video_caption"),
-                       parse_mode="Markdown",
-                       reply_to_message_id=message.message_id)
+        try:
+            bot.send_video(message.chat.id, file_id,
+                           caption=t(user_id, "tutorial_video_caption"),
+                           parse_mode="Markdown",
+                           reply_to_message_id=message.message_id)
+        except Exception as e:
+            logging.error(f"Error sending tutorial video: {e}")
+            bot.reply_to(message, t(user_id, "tutorial_no_video"))
     else:
         # Chưa có video → thông báo
-        bot.reply_to(message, t(user_id, "tutorial_no_video"), parse_mode="MarkdownV2")
+        bot.reply_to(message, t(user_id, "tutorial_no_video"))
 
     # Luôn gửi hướng dẫn text cho PC & TV
-    bot.send_message(message.chat.id,
-                     t(user_id, "tutorial_text_guide"),
-                     parse_mode="MarkdownV2")
+    try:
+        bot.send_message(message.chat.id,
+                         t(user_id, "tutorial_text_guide"),
+                         parse_mode="Markdown")
+    except Exception as e:
+        logging.error(f"Error sending tutorial text guide: {e}")
+        # Fallback: gửi không có parse_mode
+        bot.send_message(message.chat.id, t(user_id, "tutorial_text_guide"))
 
 
 @bot.message_handler(commands=['checkin'])

@@ -64,13 +64,13 @@ TEXTS = {
         # === /profile ===
         "profile_info": (
             "📎 *THÔNG TIN CÁ NHÂN*\n"
-            "---------------------------\n"
+            "═══════════════════\n"
             "👤 Username: *{username}*\n"
             "🆔 ID: `{user_id}`\n"
             "📅 Ngày tham gia: `{created_at}`\n"
-            "---------------------------\n"
+            "═══════════════════\n"
             "🔥 Chuỗi điểm danh: *{streak} ngày*\n"
-            "🎟 Lượt hôm nay: *{usage_today}/{limit}* (còn {remain})\n"
+            "🎟 Lượt hôm nay: *{usage_today}/{limit}* - còn {remain}\n"
             "📊 Tổng lượt đã dùng: *{total_usage}*\n"
             "👥 Số người đã mời: *{referral_count}*\n"
             "🎁 Bonus từ ref: *+{bonus} lượt/ngày*"
@@ -79,41 +79,41 @@ TEXTS = {
         # === Rate Limit ===
         "rate_limit_cooldown": "⏳ Vui lòng chờ *{seconds} giây* trước khi dùng lại lệnh này.",
 
-        # === /huongdan (Tutorial) ===
+        # === /guide (Tutorial) ===
         "tutorial_video_caption": "📱 *HƯỚNG DẪN TRÊN ĐIỆN THOẠI*\n\nXem video bên dưới để biết cách dùng trên điện thoại nhé!",
         "tutorial_text_guide": (
-            "💻 *HƯỚNG DẪN TRÊN MÁY TÍNH & TV*\n"
-            "---------------------------\n\n"
-            "🖥 *Đăng nhập trên trình duyệt (PC):*\n"
-            "1\\. Gõ lệnh `/get_token`\n"
-            "2\\. Bot sẽ gửi cho bạn một *link đăng nhập*\n"
-            "3\\. Copy link đó và dán vào trình duyệt\n"
-            "4\\. Netflix sẽ tự động đăng nhập cho bạn\n\n"
+            "💻 *HƯỚNG DẪN TRÊN MÁY TÍNH và TV*\n"
+            "═══════════════════\n\n"
+            "🖥 *Đăng nhập trên trình duyệt - PC:*\n"
+            "1. Gõ lệnh `/get_token`\n"
+            "2. Bot sẽ gửi cho bạn một *link đăng nhập*\n"
+            "3. Copy link đó và dán vào trình duyệt\n"
+            "4. Netflix sẽ tự động đăng nhập cho bạn\n\n"
             "📺 *Đăng nhập trên TV:*\n"
-            "1\\. Trên TV, mở Netflix và chọn \"Sign in on the web\"\n"
-            "2\\. TV sẽ hiển mã 8 chữ số\n"
-            "3\\. Gõ lệnh `/tv <mã 8 số>` \n   Ví dụ: `/tv 12345678`\n"
-            "4\\. Chờ 15\\-30 giây, TV sẽ tự động đăng nhập"
+            "1. Trên TV, mở Netflix và chọn \"Sign in on the web\"\n"
+            "2. TV sẽ hiển thị mã 8 chữ số\n"
+            "3. Gõ lệnh `/tv <mã 8 số>` \n    Ví dụ: `/tv 12345678`\n"
+            "4. Chờ 15-30 giây, TV sẽ tự động đăng nhập"
         ),
         "tutorial_no_video": (
-            "🎬 *HƯỚNG DẪN Sử DỤNG BOT*\n\n"
-            "❌ Chưa có video hướng dẫn trên điện thoại\\. Admin chưa tải lên\\."
+            "🎬 *HƯỚNG DẪN SỬ DỤNG BOT*\n\n"
+            "❌ Chưa có video hướng dẫn trên điện thoại. Admin chưa tải lên."
         ),
         "tutorial_save_confirm": "🎬 Lưu video này làm *video hướng dẫn* cho mọi người?",
         "tutorial_save_yes": "✅ Lưu làm Hướng dẫn",
         "tutorial_save_no": "❌ Không",
-        "tutorial_saved": "✅ Đã lưu video hướng dẫn thành công! User gõ `/huongdan` sẽ nhận được video này.",
+        "tutorial_saved": "✅ Đã lưu video hướng dẫn thành công! User gõ `/guide` sẽ nhận được video này.",
         "tutorial_cancelled": "👍 Đã hủy, video không được lưu.",
 
         # === /stats (Admin) ===
         "stats_no_perm": "❌ Tính năng này chỉ dành cho Admin để kiểm tra kho phòng máy.",
         "stats_report": (
             "📊 *BÁO CÁO HỆ THỐNG NETFLIX*\n"
-            "---------------------------\n"
+            "═══════════════════\n"
             "👥 *Tình trạng Hoạt Động (User):*\n"
             "- Tổng khách đã đăng ký: `{users_total}` người\n"
             "- Số khách húp link hôm nay: `{users_active_today}` người\n"
-            "---------------------------\n"
+            "═══════════════════\n"
             "🍪 *Sức khỏe Kho Cookie:*\n"
             "- Trữ lượng còn Sống: `{cookie_alive}` / Tổng đã nạp `{cookie_total}` cục\n"
             "- 🎟 Tổng số Link đã phát ra: `{total_generated} lượt`\n"
@@ -248,14 +248,14 @@ TEXTS = {
         # === /profile ===
         "profile_info": (
             "📎 *YOUR PROFILE*\n"
-            "---------------------------\n"
+            "═══════════════════\n"
             "👤 Username: *{username}*\n"
             "🆔 ID: `{user_id}`\n"
             "📅 Joined: `{created_at}`\n"
-            "---------------------------\n"
+            "═══════════════════\n"
             "🔥 Check-in streak: *{streak} days*\n"
-            "🎟 Uses today: *{usage_today}/{limit}* ({remain} left)\n"
-            "📊 Total uses (all-time): *{total_usage}*\n"
+            "🎟 Uses today: *{usage_today}/{limit}* - {remain} left\n"
+            "📊 Total uses all-time: *{total_usage}*\n"
             "👥 Friends invited: *{referral_count}*\n"
             "🎁 Referral bonus: *+{bonus} uses/day*"
         ),
@@ -263,41 +263,41 @@ TEXTS = {
         # === Rate Limit ===
         "rate_limit_cooldown": "⏳ Please wait *{seconds} seconds* before using this command again.",
 
-        # === /huongdan (Tutorial) ===
+        # === /guide (Tutorial) ===
         "tutorial_video_caption": "📱 *TUTORIAL FOR MOBILE*\n\nWatch the video below to learn how to use on your phone!",
         "tutorial_text_guide": (
-            "💻 *GUIDE FOR PC & TV*\n"
-            "---------------------------\n\n"
-            "🖥 *Login on browser \\(PC\\):*\n"
-            "1\\. Type `/get_token`\n"
-            "2\\. Bot will send you a *login link*\n"
-            "3\\. Copy the link and paste it in your browser\n"
-            "4\\. Netflix will log you in automatically\n\n"
+            "💻 *GUIDE FOR PC and TV*\n"
+            "═══════════════════\n\n"
+            "🖥 *Login on browser - PC:*\n"
+            "1. Type `/get_token`\n"
+            "2. Bot will send you a *login link*\n"
+            "3. Copy the link and paste it in your browser\n"
+            "4. Netflix will log you in automatically\n\n"
             "📺 *Login on TV:*\n"
-            "1\\. On your TV, open Netflix and select \"Sign in on the web\"\n"
-            "2\\. TV will show an 8\\-digit code\n"
-            "3\\. Type `/tv <8\\-digit code>`\n   Example: `/tv 12345678`\n"
-            "4\\. Wait 15\\-30 seconds, TV will log in automatically"
+            "1. On your TV, open Netflix and select 'Sign in on the web'\n"
+            "2. TV will show an 8-digit code\n"
+            "3. Type `/tv <8-digit code>`\n    Example: `/tv 12345678`\n"
+            "4. Wait 15-30 seconds, TV will log in automatically"
         ),
         "tutorial_no_video": (
             "🎬 *HOW TO USE THIS BOT*\n\n"
-            "❌ No mobile tutorial video available yet\\. Admin hasn't uploaded one\\."
+            "❌ No mobile tutorial video available yet. Admin hasn't uploaded one."
         ),
         "tutorial_save_confirm": "🎬 Save this video as the *tutorial video* for all users?",
         "tutorial_save_yes": "✅ Save as Tutorial",
         "tutorial_save_no": "❌ No",
-        "tutorial_saved": "✅ Tutorial video saved! Users can now type `/huongdan` to see it.",
+        "tutorial_saved": "✅ Tutorial video saved! Users can now type `/guide` to see it.",
         "tutorial_cancelled": "👍 Cancelled, video was not saved.",
 
         # === /stats (Admin) ===
         "stats_no_perm": "❌ This feature is for Admin only.",
         "stats_report": (
             "📊 *NETFLIX SYSTEM REPORT*\n"
-            "---------------------------\n"
+            "═══════════════════\n"
             "👥 *User Activity:*\n"
             "- Total registered users: `{users_total}`\n"
             "- Active users today: `{users_active_today}`\n"
-            "---------------------------\n"
+            "═══════════════════\n"
             "🍪 *Cookie Health:*\n"
             "- Alive: `{cookie_alive}` / Total imported `{cookie_total}`\n"
             "- 🎟 Total links generated: `{total_generated}`\n"
