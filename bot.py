@@ -285,7 +285,9 @@ def stats_command(message):
                  users_active_today=s['users_active_today'],
                  cookie_alive=s['cookie_alive'],
                  cookie_total=s['cookie_total'],
-                 total_generated=s['total_generated'])
+                 total_generated=s['total_generated'],
+                 token_uses_today=s['token_uses_today'],
+                 tv_uses_today=s['tv_uses_today'])
         bot.reply_to(message, text, parse_mode="Markdown")
     except Exception as e:
         bot.reply_to(message, t(user_id, "stats_error", error=e))
@@ -372,7 +374,7 @@ def get_token_command(message):
 
             # Admin KHÔNG bị tính lượt
             if not is_admin(user_id):
-                db.increment_link_usage(user_id)
+                db.increment_link_usage(user_id, "token")
 
             result_text = t(user_id, "token_success", link=link, expiry=expiry_str)
             if not is_admin(user_id):
@@ -453,7 +455,7 @@ def tv_command(message):
 
                     # Thành công! Admin KHÔNG bị tính lượt
                     if not is_admin(user_id):
-                        db.increment_link_usage(user_id)
+                        db.increment_link_usage(user_id, "tv")
                     remain_after = remain - 1 if not is_admin(user_id) else remain
                     bot.edit_message_text(
                         t(user_id, "tv_success", remain=remain_after, cap=cap),
