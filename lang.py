@@ -120,10 +120,7 @@ TEXTS = {
             "═══════════════════\n"
             "🍪 *Sức khỏe Kho Cookie:*\n"
             "- Trữ lượng còn Sống: `{cookie_alive}` / Tổng đã nạp `{cookie_total}` cục\n"
-            "- 🎟 Tổng số Link đã phát ra: `{total_generated}` lượt\n"
-            "═══════════════════\n"
-            "📋 *Chi tiết sử dụng hôm nay:*\n"
-            "{active_detail}"
+            "- 🎟 Tổng số Link đã phát ra: `{total_generated} lượt`\n"
         ),
         "stats_error": "❌ Lỗi truy cập Database: {error}",
 
@@ -306,15 +303,12 @@ TEXTS = {
             "📊 *NETFLIX SYSTEM REPORT*\n"
             "═══════════════════\n"
             "👥 *User Activity:*\n"
-            "- Total registered: `{users_total}`\n"
-            "- Active today: `{users_active_today}`\n"
+            "- Total registered users: `{users_total}`\n"
+            "- Active users today: `{users_active_today}`\n"
             "═══════════════════\n"
             "🍪 *Cookie Health:*\n"
             "- Alive: `{cookie_alive}` / Total imported `{cookie_total}`\n"
             "- 🎟 Total links generated: `{total_generated}`\n"
-            "═══════════════════\n"
-            "📋 *Today's Usage Detail:*\n"
-            "{active_detail}"
         ),
         "stats_error": "❌ Database access error: {error}",
 

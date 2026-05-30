@@ -280,33 +280,12 @@ def stats_command(message):
 
     try:
         s = db.count_stats()
-        lang = db.get_user_lang(user_id) or "vi"
-
-        # Build active users today detail with token/TV breakdown
-        if s['active_users_detail']:
-            detail_lines = []
-            for u in s['active_users_detail']:
-                name = u.get('username') or 'N/A'
-                tk = u.get('token_today', 0) or 0
-                tv = u.get('tv_today', 0) or 0
-                parts = []
-                if tk > 0:
-                    parts.append(f"🔗Token: {tk}")
-                if tv > 0:
-                    parts.append(f"📺TV: {tv}")
-                detail = " | ".join(parts) if parts else f"{u.get('usage_today', 0)}"
-                detail_lines.append(f"  • {name} — {detail}")
-            active_text = "\n".join(detail_lines)
-        else:
-            active_text = "_Hôm nay chưa ai sử dụng_" if lang == "vi" else "_No usage today_"
-
         text = t(user_id, "stats_report",
                  users_total=s['users_total'],
                  users_active_today=s['users_active_today'],
                  cookie_alive=s['cookie_alive'],
                  cookie_total=s['cookie_total'],
-                 total_generated=s['total_generated'],
-                 active_detail=active_text)
+                 total_generated=s['total_generated'])
         bot.reply_to(message, text, parse_mode="Markdown")
     except Exception as e:
         bot.reply_to(message, t(user_id, "stats_error", error=e))
@@ -393,7 +372,7 @@ def get_token_command(message):
 
             # Admin KHÔNG bị tính lượt
             if not is_admin(user_id):
-                db.increment_link_usage(user_id, "token")
+                db.increment_link_usage(user_id)
 
             result_text = t(user_id, "token_success", link=link, expiry=expiry_str)
             if not is_admin(user_id):
@@ -474,7 +453,7 @@ def tv_command(message):
 
                     # Thành công! Admin KHÔNG bị tính lượt
                     if not is_admin(user_id):
-                        db.increment_link_usage(user_id, "tv")
+                        db.increment_link_usage(user_id)
                     remain_after = remain - 1 if not is_admin(user_id) else remain
                     bot.edit_message_text(
                         t(user_id, "tv_success", remain=remain_after, cap=cap),
