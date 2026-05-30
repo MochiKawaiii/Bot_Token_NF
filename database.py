@@ -86,12 +86,15 @@ def count_stats():
     })
     
     # Thống kê chi tiết: bao nhiêu lượt token vs TV hôm nay
+    usage_pipeline = [{"$match": {"last_usage_date": today}}, {"$group": {"_id": None, "total": {"$sum": "$usage_today"}}}]
     token_pipeline = [{"$match": {"last_usage_date": today}}, {"$group": {"_id": None, "total": {"$sum": "$token_today"}}}]
     tv_pipeline = [{"$match": {"last_usage_date": today}}, {"$group": {"_id": None, "total": {"$sum": "$tv_today"}}}]
     
+    usage_res = list(users_col.aggregate(usage_pipeline))
     token_res = list(users_col.aggregate(token_pipeline))
     tv_res = list(users_col.aggregate(tv_pipeline))
     
+    total_uses_today = usage_res[0]["total"] if len(usage_res) > 0 else 0
     token_uses_today = token_res[0]["total"] if len(token_res) > 0 else 0
     tv_uses_today = tv_res[0]["total"] if len(tv_res) > 0 else 0
     
@@ -101,6 +104,7 @@ def count_stats():
         "users_total": users_total,
         "users_active_today": active_today,
         "total_generated": total_generated,
+        "total_uses_today": total_uses_today,
         "token_uses_today": token_uses_today,
         "tv_uses_today": tv_uses_today
     }

@@ -286,6 +286,7 @@ def stats_command(message):
                  cookie_alive=s['cookie_alive'],
                  cookie_total=s['cookie_total'],
                  total_generated=s['total_generated'],
+                 total_uses_today=s['total_uses_today'],
                  token_uses_today=s['token_uses_today'],
                  tv_uses_today=s['tv_uses_today'])
         bot.reply_to(message, text, parse_mode="Markdown")
