@@ -60,26 +60,24 @@ def mark_cookie_as_dead(netflix_id):
     )
 
 def count_stats():
-    """Lấy thống kê DB chi tiết"""
+    """Lấy thống kê DB"""
     db = get_db()
     
     cookies_col = db.cookies
     cookie_total = cookies_col.count_documents({})
     cookie_alive = cookies_col.count_documents({"is_alive": True})
-    cookie_dead = cookie_total - cookie_alive
     
-    # Thống kê User
+    # Fix: Tính tổng link đã phát từ users.total_usage (không bị mất khi clear_cookies)
     users_col = db.users
     users_total = users_col.count_documents({})
     
-    # Fix: Tính tổng link đã phát từ users.total_usage (không bị mất khi clear_cookies)
     gen_pipeline = [{"$group": {"_id": None, "total": {"$sum": "$total_usage"}}}]
     gen_res = list(users_col.aggregate(gen_pipeline))
     total_generated = gen_res[0]["total"] if len(gen_res) > 0 else 0
     
     today = get_vietnam_date()
     
-    # Số users hoạt động hôm nay (điểm danh hoặc lấy link)
+    # Số users có hoạt động điểm danh hoặc lấy link hôm nay
     active_today = users_col.count_documents({
         "$or": [
             {"last_usage_date": today, "usage_today": {"$gt": 0}},
@@ -87,39 +85,18 @@ def count_stats():
         ]
     })
     
-    # Tổng link/TV phát hôm nay
-    today_pipeline = [
-        {"$match": {"last_usage_date": today, "usage_today": {"$gt": 0}}},
-        {"$group": {"_id": None, "total_today": {"$sum": "$usage_today"}}}
-    ]
-    today_res = list(users_col.aggregate(today_pipeline))
-    links_today = today_res[0]["total_today"] if len(today_res) > 0 else 0
-    
-    # User mới hôm nay
-    new_users_today = users_col.count_documents({"created_at": today})
-    
-    # Top 5 users all-time by total_usage
-    top_users = list(users_col.find(
-        {"total_usage": {"$gt": 0}},
-        {"user_id": 1, "username": 1, "total_usage": 1, "_id": 0}
-    ).sort("total_usage", -1).limit(5))
-    
-    # Chi tiết users dùng link/TV hôm nay
+    # Chi tiết users dùng link/TV hôm nay (kèm loại sử dụng)
     active_users_detail = list(users_col.find(
         {"last_usage_date": today, "usage_today": {"$gt": 0}},
-        {"user_id": 1, "username": 1, "usage_today": 1, "_id": 0}
+        {"user_id": 1, "username": 1, "usage_today": 1, "token_today": 1, "tv_today": 1, "_id": 0}
     ).sort("usage_today", -1))
     
     return {
         "cookie_total": cookie_total, 
         "cookie_alive": cookie_alive,
-        "cookie_dead": cookie_dead,
         "users_total": users_total,
         "users_active_today": active_today,
         "total_generated": total_generated,
-        "links_today": links_today,
-        "new_users_today": new_users_today,
-        "top_users": top_users,
         "active_users_detail": active_users_detail
     }
 
@@ -142,6 +119,8 @@ def get_user(user_id, username=""):
             "streak": 0,
             "last_checkin_date": "",
             "usage_today": 0,
+            "token_today": 0,
+            "tv_today": 0,
             "last_usage_date": "",
             "total_usage": 0,
             "referral_count": 0,
@@ -157,6 +136,8 @@ def get_user(user_id, username=""):
             "streak": 0,
             "last_checkin_date": "",
             "usage_today": 0,
+            "token_today": 0,
+            "tv_today": 0,
             "last_usage_date": "",
             "total_usage": 0,
             "referral_count": 0,
@@ -202,7 +183,7 @@ def can_generate_link(user_id, username=""):
     if user.get("last_usage_date") != today:
         db.users.update_one(
             {"user_id": user_id},
-            {"$set": {"usage_today": 0, "last_usage_date": today}}
+            {"$set": {"usage_today": 0, "token_today": 0, "tv_today": 0, "last_usage_date": today}}
         )
         usage = 0
     else:
@@ -224,14 +205,19 @@ def can_generate_link(user_id, username=""):
         return True, limit - usage, limit
     return False, 0, limit
 
-def increment_link_usage(user_id):
-    """Cộng 1 vào lượt sử dụng link của hôm nay + tổng all-time"""
+def increment_link_usage(user_id, usage_type="token"):
+    """Cộng 1 vào lượt sử dụng link của hôm nay + tổng all-time. usage_type: 'token' hoặc 'tv'"""
     db = get_db()
     today = get_vietnam_date()
+    inc_fields = {"usage_today": 1, "total_usage": 1}
+    if usage_type == "token":
+        inc_fields["token_today"] = 1
+    elif usage_type == "tv":
+        inc_fields["tv_today"] = 1
     db.users.update_one(
         {"user_id": user_id},
         {
-            "$inc": {"usage_today": 1, "total_usage": 1},
+            "$inc": inc_fields,
             "$set": {"last_usage_date": today}
         }
     )
