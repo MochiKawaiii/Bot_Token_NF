@@ -280,12 +280,52 @@ def stats_command(message):
 
     try:
         s = db.count_stats()
+        lang = db.get_user_lang(user_id) or "vi"
+
+        # Build cookie health bar
+        if s['cookie_total'] > 0:
+            pct = int(s['cookie_alive'] / s['cookie_total'] * 100)
+            filled = pct // 10
+            health_bar = "🟢" * filled + "⚫" * (10 - filled)
+        else:
+            pct = 0
+            health_bar = "⚫" * 10
+
+        # Build top 5 users list
+        medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+        unit = "lượt" if lang == "vi" else "uses"
+        if s['top_users']:
+            top_lines = []
+            for i, u in enumerate(s['top_users']):
+                name = u.get('username') or 'N/A'
+                top_lines.append(f"{medals[i]} {name} - `{u['total_usage']}` {unit}")
+            top_text = "\n".join(top_lines)
+        else:
+            top_text = "_Chưa có dữ liệu_" if lang == "vi" else "_No data yet_"
+
+        # Build active users today detail
+        if s['active_users_detail']:
+            detail_lines = []
+            for u in s['active_users_detail']:
+                name = u.get('username') or 'N/A'
+                detail_lines.append(f"  • {name} - `{u['usage_today']}` {unit}")
+            active_text = "\n".join(detail_lines)
+        else:
+            active_text = "_Hôm nay chưa ai sử dụng_" if lang == "vi" else "_No usage today_"
+
         text = t(user_id, "stats_report",
+                 cookie_alive=s['cookie_alive'],
+                 cookie_dead=s['cookie_dead'],
+                 cookie_total=s['cookie_total'],
                  users_total=s['users_total'],
                  users_active_today=s['users_active_today'],
-                 cookie_alive=s['cookie_alive'],
-                 cookie_total=s['cookie_total'],
-                 total_generated=s['total_generated'])
+                 new_users_today=s['new_users_today'],
+                 total_generated=s['total_generated'],
+                 links_today=s['links_today'],
+                 health_bar=health_bar,
+                 health_pct=pct,
+                 top_users=top_text,
+                 active_detail=active_text)
         bot.reply_to(message, text, parse_mode="Markdown")
     except Exception as e:
         bot.reply_to(message, t(user_id, "stats_error", error=e))

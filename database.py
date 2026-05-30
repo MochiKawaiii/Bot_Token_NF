@@ -60,24 +60,26 @@ def mark_cookie_as_dead(netflix_id):
     )
 
 def count_stats():
-    """Lấy thống kê DB"""
+    """Lấy thống kê DB chi tiết"""
     db = get_db()
     
     cookies_col = db.cookies
     cookie_total = cookies_col.count_documents({})
     cookie_alive = cookies_col.count_documents({"is_alive": True})
+    cookie_dead = cookie_total - cookie_alive
     
-    # Tính tổng số link đã phát từ trước đến nay
-    pipeline = [{"$group": {"_id": None, "total_generated": {"$sum": "$times_used"}}}]
-    res = list(cookies_col.aggregate(pipeline))
-    total_generated = res[0]["total_generated"] if len(res) > 0 else 0
-    
-    # Thống kê lượng User
+    # Thống kê User
     users_col = db.users
     users_total = users_col.count_documents({})
     
-    # Số users có hoạt động điểm danh hoặc lấy link hôm nay
+    # Fix: Tính tổng link đã phát từ users.total_usage (không bị mất khi clear_cookies)
+    gen_pipeline = [{"$group": {"_id": None, "total": {"$sum": "$total_usage"}}}]
+    gen_res = list(users_col.aggregate(gen_pipeline))
+    total_generated = gen_res[0]["total"] if len(gen_res) > 0 else 0
+    
     today = get_vietnam_date()
+    
+    # Số users hoạt động hôm nay (điểm danh hoặc lấy link)
     active_today = users_col.count_documents({
         "$or": [
             {"last_usage_date": today, "usage_today": {"$gt": 0}},
@@ -85,12 +87,40 @@ def count_stats():
         ]
     })
     
+    # Tổng link/TV phát hôm nay
+    today_pipeline = [
+        {"$match": {"last_usage_date": today, "usage_today": {"$gt": 0}}},
+        {"$group": {"_id": None, "total_today": {"$sum": "$usage_today"}}}
+    ]
+    today_res = list(users_col.aggregate(today_pipeline))
+    links_today = today_res[0]["total_today"] if len(today_res) > 0 else 0
+    
+    # User mới hôm nay
+    new_users_today = users_col.count_documents({"created_at": today})
+    
+    # Top 5 users all-time by total_usage
+    top_users = list(users_col.find(
+        {"total_usage": {"$gt": 0}},
+        {"user_id": 1, "username": 1, "total_usage": 1, "_id": 0}
+    ).sort("total_usage", -1).limit(5))
+    
+    # Chi tiết users dùng link/TV hôm nay
+    active_users_detail = list(users_col.find(
+        {"last_usage_date": today, "usage_today": {"$gt": 0}},
+        {"user_id": 1, "username": 1, "usage_today": 1, "_id": 0}
+    ).sort("usage_today", -1))
+    
     return {
         "cookie_total": cookie_total, 
         "cookie_alive": cookie_alive,
+        "cookie_dead": cookie_dead,
         "users_total": users_total,
         "users_active_today": active_today,
-        "total_generated": total_generated
+        "total_generated": total_generated,
+        "links_today": links_today,
+        "new_users_today": new_users_today,
+        "top_users": top_users,
+        "active_users_detail": active_users_detail
     }
 
 def clear_all_cookies():
