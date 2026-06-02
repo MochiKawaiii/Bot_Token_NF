@@ -176,10 +176,24 @@ def read_cookies(filepath):
 # NFTOKEN GENERATOR
 # ============================================================
 
+class AccountOnHoldError(Exception):
+    """Raised when the Netflix account is on hold / suspended / delinquent."""
+    pass
+
+
+# Các trạng thái tài khoản coi như "chết"
+_BAD_ACCOUNT_STATUSES = {
+    "ON_HOLD", "DELINQUENT", "CLOSED", "SUSPENDED",
+    "CANCELLED", "CANCELED", "PENDING_CANCELLATION",
+    "ACCOUNT_ON_HOLD", "OVERDUE",
+}
+
+
 def fetch_nftoken(netflix_id):
     """
     Call Netflix iOS API to generate an nftoken from NetflixId cookie.
     Returns (token, expires_timestamp) or raises on failure.
+    Raises AccountOnHoldError if account is on hold/suspended.
     """
     headers = dict(BASE_HEADERS)
     headers["Cookie"] = f"NetflixId={netflix_id}"
@@ -195,9 +209,31 @@ def fetch_nftoken(netflix_id):
 
     data = response.json()
 
+    # === Kiểm tra trạng thái tài khoản ===
+    account_data = (data.get("value") or {}).get("account") or {}
+
+    # Cách 1: Kiểm tra membershipStatus / status
+    membership_status = (
+        account_data.get("membershipStatus")
+        or account_data.get("status")
+        or account_data.get("accountStatus")
+        or ""
+    )
+    if isinstance(membership_status, str) and membership_status.upper() in _BAD_ACCOUNT_STATUSES:
+        raise AccountOnHoldError(f"Account status: {membership_status}")
+
+    # Cách 2: Kiểm tra trong response text — Netflix đôi khi trả message
+    raw_text = response.text.lower()
+    hold_keywords = ["on hold", "account hold", "payment is past due",
+                     "update your payment", "delinquent", "suspended",
+                     "your account is on hold"]
+    for keyword in hold_keywords:
+        if keyword in raw_text:
+            raise AccountOnHoldError(f"Account on hold (detected: '{keyword}')")
+
     # Extract token from nested response: value.account.token.default.token
     token_data = (
-        (((data.get("value") or {}).get("account") or {}).get("token") or {}).get("default")
+        (account_data.get("token") or {}).get("default")
         or {}
     )
     token = token_data.get("token")
