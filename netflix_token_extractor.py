@@ -188,6 +188,135 @@ _BAD_ACCOUNT_STATUSES = {
     "ACCOUNT_ON_HOLD", "OVERDUE",
 }
 
+# Trạng thái membership coi như cookie chết
+_DEAD_MEMBER_STATUSES = {
+    "FORMER_MEMBER", "NEVER_MEMBER",
+}
+
+# Headers cho web verification
+_WEB_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+}
+
+
+def _decode_js_escapes(s):
+    """Decode \\xHH JavaScript escape sequences in Netflix reactContext JSON."""
+    return re.sub(r'\\x([0-9a-fA-F]{2})', lambda m: chr(int(m.group(1), 16)), s)
+
+
+def verify_account_health(netflix_id):
+    """
+    Xác minh tình trạng tài khoản Netflix bằng cách request /YourAccount
+    và phân tích reactContext trong HTML trả về.
+
+    - Account khỏe mạnh: membershipStatus=CURRENT_MEMBER + hasService=True
+    - Account on-hold (nợ phí): membershipStatus=CURRENT_MEMBER + hasService=False
+    - Account chết: membershipStatus=FORMER_MEMBER hoặc NEVER_MEMBER
+
+    Raises:
+        AccountOnHoldError: nếu tài khoản bị on-hold hoặc nợ phí
+        ValueError: nếu cookie chết (FORMER_MEMBER / redirect to login)
+    """
+    headers = dict(_WEB_HEADERS)
+    headers["Cookie"] = f"NetflixId={netflix_id}"
+
+    try:
+        # Bước 1: Request /YourAccount, không theo redirect để kiểm tra Location
+        r_check = requests.get(
+            "https://www.netflix.com/YourAccount",
+            headers=headers,
+            timeout=15,
+            verify=False,
+            allow_redirects=False,
+        )
+
+        location = r_check.headers.get("Location", "")
+
+        # Cookie chết → redirect tới /login
+        if "/login" in location:
+            raise ValueError("Cookie dead: redirected to login")
+
+        # On-hold rõ ràng → redirect tới /cleanse hoặc /simplecleanse
+        if "cleanse" in location.lower():
+            raise AccountOnHoldError("Account on hold: redirected to cleanse page")
+
+        # Bước 2: Lấy trang /account đầy đủ và parse reactContext
+        r_full = requests.get(
+            "https://www.netflix.com/YourAccount",
+            headers=headers,
+            timeout=15,
+            verify=False,
+            allow_redirects=True,
+        )
+
+        # Tìm reactContext trong HTML
+        ctx_match = re.search(
+            r'netflix\.reactContext\s*=\s*({.*?});',
+            r_full.text,
+            re.DOTALL
+        )
+
+        if not ctx_match:
+            # Không tìm thấy reactContext — có thể bị redirect tới trang lỗi
+            if "/login" in r_full.url:
+                raise ValueError("Cookie dead: landed on login page")
+            return  # Không parse được, bỏ qua verification
+
+        # Decode JavaScript escapes (\xHH) và parse JSON
+        raw_ctx = ctx_match.group(1)
+        decoded_ctx = _decode_js_escapes(raw_ctx)
+
+        try:
+            ctx_data = json.loads(decoded_ctx)
+        except json.JSONDecodeError:
+            return  # JSON lỗi, bỏ qua verification
+
+        models = ctx_data.get("models", {})
+
+        # === Kiểm tra membershipStatus ===
+        user_info = (models.get("userInfo", {}).get("data") or {})
+        membership_status = user_info.get("membershipStatus", "")
+
+        if membership_status in _DEAD_MEMBER_STATUSES:
+            raise ValueError(f"Account dead: membershipStatus={membership_status}")
+
+        if membership_status and membership_status.upper() in _BAD_ACCOUNT_STATUSES:
+            raise AccountOnHoldError(f"Account status: {membership_status}")
+
+        # === Kiểm tra hasService (chìa khóa phát hiện on-hold) ===
+        flow_data = (models.get("flow", {}).get("data") or {})
+        fields = flow_data.get("fields", {})
+        has_service = fields.get("hasService", {})
+
+        if isinstance(has_service, dict) and has_service.get("value") is False:
+            # membershipStatus=CURRENT_MEMBER nhưng hasService=False
+            # → Account bị tạm giữ do nợ phí (on hold)
+            raise AccountOnHoldError(
+                f"Account on hold: hasService=False (payment issue detected)"
+            )
+
+        # === Kiểm tra isPlaybackAllowed ===
+        truths = (models.get("truths", {}).get("data") or {})
+        is_current = truths.get("CURRENT_MEMBER", False)
+        is_playback = truths.get("isPlaybackAllowed", True)
+
+        # CURRENT_MEMBER nhưng không được phép playback → on hold
+        if is_current and is_playback is False:
+            # Double-check: nếu hasService cũng False thì chắc chắn on-hold
+            if isinstance(has_service, dict) and has_service.get("value") is False:
+                raise AccountOnHoldError(
+                    "Account on hold: CURRENT_MEMBER but playback not allowed"
+                )
+
+    except (AccountOnHoldError, ValueError):
+        raise  # Re-raise các lỗi đã xác định
+    except requests.exceptions.RequestException:
+        pass  # Lỗi mạng → bỏ qua verification, không block user
+    except Exception:
+        pass  # Lỗi parse khác → bỏ qua verification
+
 
 def fetch_nftoken(netflix_id):
     """
@@ -209,10 +338,10 @@ def fetch_nftoken(netflix_id):
 
     data = response.json()
 
-    # === Kiểm tra trạng thái tài khoản ===
+    # === Kiểm tra trạng thái tài khoản từ iOS API response ===
     account_data = (data.get("value") or {}).get("account") or {}
 
-    # Cách 1: Kiểm tra membershipStatus / status
+    # Cách 1: Kiểm tra membershipStatus / status (hiếm khi iOS API trả về)
     membership_status = (
         account_data.get("membershipStatus")
         or account_data.get("status")
@@ -222,7 +351,7 @@ def fetch_nftoken(netflix_id):
     if isinstance(membership_status, str) and membership_status.upper() in _BAD_ACCOUNT_STATUSES:
         raise AccountOnHoldError(f"Account status: {membership_status}")
 
-    # Cách 2: Kiểm tra trong response text — Netflix đôi khi trả message
+    # Cách 2: Kiểm tra keyword trong response text
     raw_text = response.text.lower()
     hold_keywords = ["on hold", "account hold", "payment is past due",
                      "update your payment", "delinquent", "suspended",
@@ -245,6 +374,11 @@ def fetch_nftoken(netflix_id):
     # Convert milliseconds to seconds if needed
     if isinstance(expires, int) and len(str(expires)) == 13:
         expires //= 1000
+
+    # === Cách 3: Web verification — Kiểm tra /YourAccount page ===
+    # iOS API không trả về trạng thái tài khoản, nên cần kiểm tra thêm
+    # bằng cách request trang web Netflix để phát hiện on-hold
+    verify_account_health(netflix_id)
 
     return token, expires
 

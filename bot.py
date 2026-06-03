@@ -464,6 +464,36 @@ def tv_command(message):
                     return
 
                 try:
+                    # Kiểm tra account health trước khi thử TV activation
+                    netflix_id = cookie_doc['cookie_data'].get('NetflixId', '')
+                    if netflix_id:
+                        try:
+                            extractor.verify_account_health(netflix_id)
+                        except AccountOnHoldError:
+                            # Account on-hold → đánh dấu cookie chết, chuyển cookie khác
+                            db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                            save_dead_cookie_to_file(cookie_doc)
+                            try:
+                                bot.edit_message_text(
+                                    t(user_id, "tv_on_hold", attempt=attempt+1),
+                                    chat_id=message.chat.id, message_id=loading_msg.message_id)
+                            except Exception:
+                                pass
+                            time.sleep(1)
+                            continue
+                        except ValueError:
+                            # Cookie chết → đánh dấu và chuyển cookie khác
+                            db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                            save_dead_cookie_to_file(cookie_doc)
+                            try:
+                                bot.edit_message_text(
+                                    t(user_id, "tv_cookie_switch", attempt=attempt+1),
+                                    chat_id=message.chat.id, message_id=loading_msg.message_id)
+                            except Exception:
+                                pass
+                            time.sleep(1)
+                            continue
+
                     tv_activator.activate_tv_code(cookie_doc['cookie_data'], tv_code)
 
                     # Thành công! Admin KHÔNG bị tính lượt
