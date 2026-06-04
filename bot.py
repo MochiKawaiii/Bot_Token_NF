@@ -6,7 +6,6 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from flask import Flask, request, jsonify
 import database as db
 import netflix_token_extractor as extractor
-from netflix_token_extractor import AccountOnHoldError
 import netflix_tv_activator as tv_activator
 import threading
 from lang import get_text
@@ -364,14 +363,13 @@ def get_token_command(message):
             return
 
         netflix_id = cookie_doc['cookie_data'].get('NetflixId') or cookie_doc['cookie_data'].get('netflix_id')
-        secure_netflix_id = cookie_doc['cookie_data'].get('SecureNetflixId') or cookie_doc['cookie_data'].get('secure_netflix_id', '')
         if not netflix_id:
             db.mark_cookie_as_dead(cookie_doc['netflix_id'])
             save_dead_cookie_to_file(cookie_doc)
             continue
 
         try:
-            token, expires = extractor.fetch_nftoken(netflix_id, secure_netflix_id)
+            token, expires = extractor.fetch_nftoken(netflix_id)
             link = extractor.build_nftoken_link(token)
             expiry_str = extractor.format_expiry(expires)
 
@@ -393,17 +391,6 @@ def get_token_command(message):
             bot.edit_message_text(result_text, chat_id=message.chat.id,
                                   message_id=loading_msg.message_id, parse_mode="Markdown", reply_markup=markup)
             return
-
-        except AccountOnHoldError as e:
-            # Tài khoản bị tạm giữ → đánh dấu cookie chết, tự chuyển cookie khác
-            try:
-                bot.edit_message_text(t(user_id, "token_on_hold"),
-                                      chat_id=message.chat.id, message_id=loading_msg.message_id)
-            except Exception:
-                pass
-            db.mark_cookie_as_dead(cookie_doc['netflix_id'])
-            save_dead_cookie_to_file(cookie_doc)
-            time.sleep(1)
 
         except (extractor.requests.exceptions.HTTPError, ValueError) as e:
             try:
@@ -465,37 +452,6 @@ def tv_command(message):
                     return
 
                 try:
-                    # Kiểm tra account health trước khi thử TV activation
-                    netflix_id = cookie_doc['cookie_data'].get('NetflixId', '')
-                    secure_netflix_id = cookie_doc['cookie_data'].get('SecureNetflixId') or cookie_doc['cookie_data'].get('secure_netflix_id', '')
-                    if netflix_id:
-                        try:
-                            extractor.verify_account_health(netflix_id, secure_netflix_id)
-                        except AccountOnHoldError:
-                            # Account on-hold → đánh dấu cookie chết, chuyển cookie khác
-                            db.mark_cookie_as_dead(cookie_doc['netflix_id'])
-                            save_dead_cookie_to_file(cookie_doc)
-                            try:
-                                bot.edit_message_text(
-                                    t(user_id, "tv_on_hold", attempt=attempt+1),
-                                    chat_id=message.chat.id, message_id=loading_msg.message_id)
-                            except Exception:
-                                pass
-                            time.sleep(1)
-                            continue
-                        except ValueError:
-                            # Cookie chết → đánh dấu và chuyển cookie khác
-                            db.mark_cookie_as_dead(cookie_doc['netflix_id'])
-                            save_dead_cookie_to_file(cookie_doc)
-                            try:
-                                bot.edit_message_text(
-                                    t(user_id, "tv_cookie_switch", attempt=attempt+1),
-                                    chat_id=message.chat.id, message_id=loading_msg.message_id)
-                            except Exception:
-                                pass
-                            time.sleep(1)
-                            continue
-
                     tv_activator.activate_tv_code(cookie_doc['cookie_data'], tv_code)
 
                     # Thành công! Admin KHÔNG bị tính lượt
@@ -510,10 +466,6 @@ def tv_command(message):
 
                 except ValueError as e:
                     err_msg = str(e)
-                    # Kiểm tra nếu là lỗi tài khoản tạm giữ (on hold) từ TV activator
-                    on_hold_keywords = ["on hold", "tạm giữ", "payment", "suspended"]
-                    is_on_hold = any(kw in err_msg.lower() for kw in on_hold_keywords)
-                    
                     if "Invalid TV Code" in err_msg or "hợp lệ" in err_msg or "hết hạn" in err_msg:
                         bot.edit_message_text(
                             t(user_id, "tv_invalid_code", error=err_msg),
@@ -523,14 +475,9 @@ def tv_command(message):
                         db.mark_cookie_as_dead(cookie_doc['netflix_id'])
                         save_dead_cookie_to_file(cookie_doc)
                         try:
-                            if is_on_hold:
-                                bot.edit_message_text(
-                                    t(user_id, "tv_on_hold", attempt=attempt+1),
-                                    chat_id=message.chat.id, message_id=loading_msg.message_id)
-                            else:
-                                bot.edit_message_text(
-                                    t(user_id, "tv_cookie_switch", attempt=attempt+1),
-                                    chat_id=message.chat.id, message_id=loading_msg.message_id)
+                            bot.edit_message_text(
+                                t(user_id, "tv_cookie_switch", attempt=attempt+1),
+                                chat_id=message.chat.id, message_id=loading_msg.message_id)
                         except Exception:
                             pass
                         time.sleep(1)

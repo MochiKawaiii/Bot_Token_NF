@@ -148,7 +148,6 @@ TEXTS = {
         ),
         "token_remain": "\n🎟 Lượt còn lại hôm nay: *{remain}/{cap}*\n",
         "token_error": "❌ Có lỗi khi tạo token: {error}",
-        "token_on_hold": "⚠️ Tài khoản Netflix bị *tạm giữ* - đang tự động chuyển cookie khác...",
         "token_all_dead": "❌ Đã thử nhiều cookie nhưng không cái nào hoạt động. Vui lòng thử lại sau!",
         "btn_report_error": "⚠️ Báo lỗi Token này",
 
@@ -159,7 +158,6 @@ TEXTS = {
         "tv_success": "✅ **Kích hoạt TV Thành Công!**\n\n📺 Hãy nhìn lên màn hình TV của bạn, Netflix đã tự động đăng nhập!\n\n💡 Lượt dùng còn lại trong ngày: `{remain}/{cap}`",
         "tv_invalid_code": "❌ Lỗi Mã TV: {error}",
         "tv_cookie_switch": "♻️ Cookie #{attempt} không hỗ trợ, đang đổi cookie khác...",
-        "tv_on_hold": "⚠️ Cookie #{attempt} bị *tạm giữ* - đang chuyển cookie khác...",
         "tv_connection_error": "❌ Lỗi kết nối: {error}",
         "tv_all_dead": "❌ Đã thử nhiều cookie nhưng không cái nào hỗ trợ TV. Vui lòng thử lại sau!",
         "tv_unexpected": "❌ Lỗi không mong đợi: {error}",
@@ -341,7 +339,6 @@ TEXTS = {
         ),
         "token_remain": "\n🎟 Remaining uses today: *{remain}/{cap}*\n",
         "token_error": "❌ Error generating token: {error}",
-        "token_on_hold": "⚠️ Netflix account is *on hold* - auto-switching to another cookie...",
         "token_all_dead": "❌ Tried multiple cookies but none worked. Please try again later!",
         "btn_report_error": "⚠️ Report this token",
 
@@ -352,7 +349,6 @@ TEXTS = {
         "tv_success": "✅ **TV Activation Successful!**\n\n📺 Check your TV screen — Netflix has been logged in automatically!\n\n💡 Remaining uses today: `{remain}/{cap}`",
         "tv_invalid_code": "❌ TV Code Error: {error}",
         "tv_cookie_switch": "♻️ Cookie #{attempt} not supported, switching to another...",
-        "tv_on_hold": "⚠️ Cookie #{attempt} account is *on hold* - switching to another...",
         "tv_connection_error": "❌ Connection error: {error}",
         "tv_all_dead": "❌ Tried multiple cookies but none support TV. Please try again later!",
         "tv_unexpected": "❌ Unexpected error: {error}",
