@@ -364,13 +364,14 @@ def get_token_command(message):
             return
 
         netflix_id = cookie_doc['cookie_data'].get('NetflixId') or cookie_doc['cookie_data'].get('netflix_id')
+        secure_netflix_id = cookie_doc['cookie_data'].get('SecureNetflixId') or cookie_doc['cookie_data'].get('secure_netflix_id', '')
         if not netflix_id:
             db.mark_cookie_as_dead(cookie_doc['netflix_id'])
             save_dead_cookie_to_file(cookie_doc)
             continue
 
         try:
-            token, expires = extractor.fetch_nftoken(netflix_id)
+            token, expires = extractor.fetch_nftoken(netflix_id, secure_netflix_id)
             link = extractor.build_nftoken_link(token)
             expiry_str = extractor.format_expiry(expires)
 
@@ -466,9 +467,10 @@ def tv_command(message):
                 try:
                     # Kiểm tra account health trước khi thử TV activation
                     netflix_id = cookie_doc['cookie_data'].get('NetflixId', '')
+                    secure_netflix_id = cookie_doc['cookie_data'].get('SecureNetflixId') or cookie_doc['cookie_data'].get('secure_netflix_id', '')
                     if netflix_id:
                         try:
-                            extractor.verify_account_health(netflix_id)
+                            extractor.verify_account_health(netflix_id, secure_netflix_id)
                         except AccountOnHoldError:
                             # Account on-hold → đánh dấu cookie chết, chuyển cookie khác
                             db.mark_cookie_as_dead(cookie_doc['netflix_id'])

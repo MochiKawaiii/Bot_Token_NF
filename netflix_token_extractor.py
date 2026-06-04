@@ -206,27 +206,35 @@ def _decode_js_escapes(s):
     return re.sub(r'\\x([0-9a-fA-F]{2})', lambda m: chr(int(m.group(1), 16)), s)
 
 
-def verify_account_health(netflix_id):
+def verify_account_health(netflix_id, secure_netflix_id=None):
     """
     Xác minh tình trạng tài khoản Netflix bằng cách request /YourAccount
     và phân tích reactContext trong HTML trả về.
 
-    - Account khỏe mạnh: membershipStatus=CURRENT_MEMBER + hasService=True
-    - Account on-hold (nợ phí): membershipStatus=CURRENT_MEMBER + hasService=False
+    - Account khỏe mạnh: membershipStatus=CURRENT_MEMBER + isPlaybackAllowed=True
+    - Account on-hold (nợ phí): CURRENT_MEMBER nhưng isPlaybackAllowed=False
     - Account chết: membershipStatus=FORMER_MEMBER hoặc NEVER_MEMBER
+
+    Yêu cầu: Phải gửi cả NetflixId VÀ SecureNetflixId để Netflix web
+    xác thực đúng. Thiếu SecureNetflixId sẽ bị redirect tới login.
 
     Raises:
         AccountOnHoldError: nếu tài khoản bị on-hold hoặc nợ phí
         ValueError: nếu cookie chết (FORMER_MEMBER / redirect to login)
     """
     headers = dict(_WEB_HEADERS)
-    headers["Cookie"] = f"NetflixId={netflix_id}"
+    # Dùng cookies= dict thay vì Cookie header string
+    # Vì SecureNetflixId có secure=True, requests chỉ gửi đúng qua cookies param
+    cookie_dict = {"NetflixId": netflix_id}
+    if secure_netflix_id:
+        cookie_dict["SecureNetflixId"] = secure_netflix_id
 
     try:
         # Bước 1: Request /YourAccount, không theo redirect để kiểm tra Location
         r_check = requests.get(
             "https://www.netflix.com/YourAccount",
             headers=headers,
+            cookies=cookie_dict,
             timeout=15,
             verify=False,
             allow_redirects=False,
@@ -246,10 +254,18 @@ def verify_account_health(netflix_id):
         r_full = requests.get(
             "https://www.netflix.com/YourAccount",
             headers=headers,
+            cookies=cookie_dict,
             timeout=15,
             verify=False,
             allow_redirects=True,
         )
+
+        # Kiểm tra URL cuối cùng sau tất cả redirects
+        final_url = r_full.url.lower()
+        if "/login" in final_url:
+            raise ValueError("Cookie dead: final redirect landed on login page")
+        if "cleanse" in final_url:
+            raise AccountOnHoldError("Account on hold: final redirect to cleanse page")
 
         # Tìm reactContext trong HTML
         ctx_match = re.search(
@@ -297,18 +313,18 @@ def verify_account_health(netflix_id):
                 f"Account on hold: hasService=False (payment issue detected)"
             )
 
-        # === Kiểm tra isPlaybackAllowed ===
+        # === Kiểm tra isPlaybackAllowed (chìa khóa chính phát hiện on-hold) ===
         truths = (models.get("truths", {}).get("data") or {})
         is_current = truths.get("CURRENT_MEMBER", False)
         is_playback = truths.get("isPlaybackAllowed", True)
 
         # CURRENT_MEMBER nhưng không được phép playback → on hold
+        # Lưu ý: hasService có thể vẫn = True khi on-hold,
+        # chỉ isPlaybackAllowed=False mới chính xác 100%
         if is_current and is_playback is False:
-            # Double-check: nếu hasService cũng False thì chắc chắn on-hold
-            if isinstance(has_service, dict) and has_service.get("value") is False:
-                raise AccountOnHoldError(
-                    "Account on hold: CURRENT_MEMBER but playback not allowed"
-                )
+            raise AccountOnHoldError(
+                "Account on hold: CURRENT_MEMBER but playback not allowed"
+            )
 
     except (AccountOnHoldError, ValueError):
         raise  # Re-raise các lỗi đã xác định
@@ -318,7 +334,7 @@ def verify_account_health(netflix_id):
         pass  # Lỗi parse khác → bỏ qua verification
 
 
-def fetch_nftoken(netflix_id):
+def fetch_nftoken(netflix_id, secure_netflix_id=None):
     """
     Call Netflix iOS API to generate an nftoken from NetflixId cookie.
     Returns (token, expires_timestamp) or raises on failure.
@@ -378,7 +394,8 @@ def fetch_nftoken(netflix_id):
     # === Cách 3: Web verification — Kiểm tra /YourAccount page ===
     # iOS API không trả về trạng thái tài khoản, nên cần kiểm tra thêm
     # bằng cách request trang web Netflix để phát hiện on-hold
-    verify_account_health(netflix_id)
+    # Cần cả SecureNetflixId để Netflix web xác thực đúng
+    verify_account_health(netflix_id, secure_netflix_id)
 
     return token, expires
 
