@@ -211,16 +211,19 @@ def verify_account_health(netflix_id, secure_netflix_id=None):
     Xác minh tình trạng tài khoản Netflix bằng cách request /YourAccount
     và phân tích reactContext trong HTML trả về.
 
-    - Account khỏe mạnh: membershipStatus=CURRENT_MEMBER + isPlaybackAllowed=True
-    - Account on-hold (nợ phí): CURRENT_MEMBER nhưng isPlaybackAllowed=False
-    - Account chết: membershipStatus=FORMER_MEMBER hoặc NEVER_MEMBER
+    CHÚ Ý: Nếu chỉ có NetflixId (không có SecureNetflixId), Netflix web
+    sẽ redirect tới login → KHÔNG THỂ verify qua web.
+    Trong trường hợp này, hàm return bình thường (bỏ qua verification).
+    KHÔNG đánh dấu cookie chết khi redirect login.
 
-    Yêu cầu: Phải gửi cả NetflixId VÀ SecureNetflixId để Netflix web
-    xác thực đúng. Thiếu SecureNetflixId sẽ bị redirect tới login.
+    Chỉ raise error khi CHẮC CHẮN phát hiện vấn đề:
+    - Redirect tới /cleanse → AccountOnHoldError
+    - reactContext: isPlaybackAllowed=False → AccountOnHoldError
+    - reactContext: FORMER_MEMBER → ValueError (cookie chết thật)
 
     Raises:
         AccountOnHoldError: nếu tài khoản bị on-hold hoặc nợ phí
-        ValueError: nếu cookie chết (FORMER_MEMBER / redirect to login)
+        ValueError: nếu cookie chết (chỉ khi xác nhận qua reactContext)
     """
     headers = dict(_WEB_HEADERS)
     # Gửi cookies qua header string
@@ -241,9 +244,10 @@ def verify_account_health(netflix_id, secure_netflix_id=None):
 
         location = r_check.headers.get("Location", "")
 
-        # Cookie chết → redirect tới /login
+        # Redirect tới /login → không thể verify qua web (thiếu SecureNetflixId)
+        # KHÔNG coi là cookie chết, chỉ bỏ qua verification
         if "/login" in location:
-            raise ValueError("Cookie dead: redirected to login")
+            return
 
         # On-hold rõ ràng → redirect tới /cleanse hoặc /simplecleanse
         if "cleanse" in location.lower():
@@ -260,10 +264,10 @@ def verify_account_health(netflix_id, secure_netflix_id=None):
 
         # Kiểm tra URL cuối cùng sau tất cả redirects
         final_url = r_full.url.lower()
-        if "/login" in final_url:
-            raise ValueError("Cookie dead: final redirect landed on login page")
         if "cleanse" in final_url:
             raise AccountOnHoldError("Account on hold: final redirect to cleanse page")
+        if "/login" in final_url:
+            return  # Không thể verify qua web, bỏ qua
 
         # Tìm reactContext trong HTML
         ctx_match = re.search(
@@ -273,9 +277,6 @@ def verify_account_health(netflix_id, secure_netflix_id=None):
         )
 
         if not ctx_match:
-            # Không tìm thấy reactContext — có thể bị redirect tới trang lỗi
-            if "/login" in r_full.url:
-                raise ValueError("Cookie dead: landed on login page")
             return  # Không parse được, bỏ qua verification
 
         # Decode JavaScript escapes (\xHH) và parse JSON
