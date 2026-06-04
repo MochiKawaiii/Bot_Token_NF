@@ -223,18 +223,17 @@ def verify_account_health(netflix_id, secure_netflix_id=None):
         ValueError: nếu cookie chết (FORMER_MEMBER / redirect to login)
     """
     headers = dict(_WEB_HEADERS)
-    # Dùng cookies= dict thay vì Cookie header string
-    # Vì SecureNetflixId có secure=True, requests chỉ gửi đúng qua cookies param
-    cookie_dict = {"NetflixId": netflix_id}
+    # Gửi cookies qua header string
+    cookie_parts = [f"NetflixId={netflix_id}"]
     if secure_netflix_id:
-        cookie_dict["SecureNetflixId"] = secure_netflix_id
+        cookie_parts.append(f"SecureNetflixId={secure_netflix_id}")
+    headers["Cookie"] = "; ".join(cookie_parts)
 
     try:
         # Bước 1: Request /YourAccount, không theo redirect để kiểm tra Location
         r_check = requests.get(
             "https://www.netflix.com/YourAccount",
             headers=headers,
-            cookies=cookie_dict,
             timeout=15,
             verify=False,
             allow_redirects=False,
@@ -254,7 +253,6 @@ def verify_account_health(netflix_id, secure_netflix_id=None):
         r_full = requests.get(
             "https://www.netflix.com/YourAccount",
             headers=headers,
-            cookies=cookie_dict,
             timeout=15,
             verify=False,
             allow_redirects=True,
