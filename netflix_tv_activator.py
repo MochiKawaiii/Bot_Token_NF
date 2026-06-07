@@ -25,9 +25,9 @@ def activate_tv_code(cookie_dict, code):
     # Chỉ giữ lại chữ số, bỏ dấu - và ký tự khác
     code = ''.join(c for c in str(code) if c.isdigit())
     if len(code) != 8:
-        raise ValueError(f"TV code phải đúng 8 chữ số, nhận được {len(code)} chữ số: '{code}'")
+        raise ValueError(f"TV code must be exactly 8 digits, got {len(code)}: '{code}'")
     if not BROWSERLESS_TOKEN:
-        raise Exception("BROWSERLESS_TOKEN chưa được cấu hình!")
+        raise Exception("BROWSERLESS_TOKEN is not configured!")
     
     driver = None
     try:
@@ -80,8 +80,8 @@ def activate_tv_code(cookie_dict, code):
         except TimeoutException:
             url = driver.current_url.lower()
             if "login" in url:
-                raise ValueError("Cookie chết hoặc gói cước không hỗ trợ TV.")
-            raise ValueError("Không thể tải trang TV8, cookie có thể đã hết hạn.")
+                raise ValueError("Cookie expired or plan does not support TV.")
+            raise ValueError("Cannot load TV8 page, cookie may have expired.")
         
         # === Bước 3: Nhập từng chữ số ===
         for i, digit in enumerate(code):
@@ -93,7 +93,7 @@ def activate_tv_code(cookie_dict, code):
                 pin.send_keys(digit)
                 time.sleep(0.15)
             except Exception:
-                raise Exception(f"Không thể nhập chữ số thứ {i+1}")
+                raise Exception(f"Cannot enter digit {i+1}")
         
         # === Bước 4: Bấm Submit ===
         time.sleep(0.5)
@@ -103,7 +103,7 @@ def activate_tv_code(cookie_dict, code):
             )
             btn.click()
         except TimeoutException:
-            raise ValueError("Invalid TV Code: Nút xác nhận không kích hoạt được.")
+            raise ValueError("Invalid TV Code: Submit button not clickable.")
         
         # === Bước 5: Chờ kết quả ===
         time.sleep(6)
@@ -124,12 +124,12 @@ def activate_tv_code(cookie_dict, code):
         
         # Bị redirect về login
         if "login" in url and "/tv" not in url:
-            raise ValueError("Cookie bị từ chối tính năng TV.")
+            raise ValueError("Cookie rejected for TV feature.")
         
         # Form vẫn còn → mã sai
         try:
             driver.find_element(By.CSS_SELECTOR, 'input[data-uia="pin-number-0"]')
-            raise ValueError("Invalid TV Code: Mã code không hợp lệ hoặc đã hết hạn (5 phút).")
+            raise ValueError("Invalid TV Code: Code is invalid or expired (5 min limit).")
         except NoSuchElementException:
             # Form biến mất → thành công!
             return True
