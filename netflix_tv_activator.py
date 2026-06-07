@@ -22,6 +22,10 @@ def activate_tv_code(cookie_dict, code):
     Raises ValueError nếu cookie chết hoặc mã sai.
     Raises Exception nếu lỗi mạng.
     """
+    # Chỉ giữ lại chữ số, bỏ dấu - và ký tự khác
+    code = ''.join(c for c in str(code) if c.isdigit())
+    if len(code) != 8:
+        raise ValueError(f"TV code phải đúng 8 chữ số, nhận được {len(code)} chữ số: '{code}'")
     if not BROWSERLESS_TOKEN:
         raise Exception("BROWSERLESS_TOKEN chưa được cấu hình!")
     

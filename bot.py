@@ -422,7 +422,7 @@ def tv_command(message):
         bot.reply_to(message, t(user_id, "tv_syntax"), parse_mode="Markdown")
         return
 
-    tv_code = parts[1]
+    tv_code = ''.join(c for c in parts[1] if c.isdigit())  # Strip dấu - và ký tự không phải số
     username = message.from_user.username or message.from_user.first_name
 
     # 0. Rate limit check (30s cooldown)
