@@ -421,8 +421,14 @@ def tv_command(message):
     if len(parts) < 2:
         bot.reply_to(message, t(user_id, "tv_syntax"), parse_mode="Markdown")
         return
-
-    tv_code = ''.join(c for c in parts[1] if c.isdigit())  # Strip dấu - và ký tự không phải số
+    # Gộp tất cả phần sau /tv và chỉ giữ lại chữ số
+    # Hỗ trợ: /tv 5464-6464, /tv 5464 6464, /tv 54646464
+    raw_code = ' '.join(parts[1:])
+    tv_code = ''.join(c for c in raw_code if c.isdigit())
+    
+    if len(tv_code) != 8:
+        bot.reply_to(message, t(user_id, "tv_syntax"), parse_mode="Markdown")
+        return
     username = message.from_user.username or message.from_user.first_name
 
     # 0. Rate limit check (30s cooldown)
