@@ -6,13 +6,16 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException,
 
 BROWSERLESS_TOKEN = os.environ.get("BROWSERLESS_TOKEN", "")
 
-def check_account_status(cookie_dict):
+def check_account_status(link):
     """
-    Checks if a Netflix account is active, dead, or on-hold via Browserless.
+    Checks if a Netflix account is active, dead, or on-hold via Browserless using the nftoken link.
     Returns: "active", "on_hold", or "dead"
     """
     if not BROWSERLESS_TOKEN:
         raise Exception("BROWSERLESS_TOKEN is not configured!")
+    
+    # Change /browse to /account to go directly to the account page where the banner is
+    test_link = link.replace('/browse?nftoken=', '/account?nftoken=')
     
     driver = None
     try:
@@ -40,25 +43,9 @@ def check_account_status(cookie_dict):
         driver.set_page_load_timeout(30)
         driver.set_script_timeout(15)
         
-        # 1. Inject Cookies
-        driver.get("https://www.netflix.com/browse")
-        time.sleep(1)
-        
-        nf_id = cookie_dict.get("NetflixId") or cookie_dict.get("netflix_id", "")
-        sec_id = cookie_dict.get("SecureNetflixId") or cookie_dict.get("secure_netflix_id", "")
-        
-        if nf_id:
-            driver.add_cookie({"name": "NetflixId", "value": nf_id, "domain": ".netflix.com", "path": "/"})
-        if sec_id:
-            driver.add_cookie({"name": "SecureNetflixId", "value": sec_id, "domain": ".netflix.com", "path": "/"})
-        
-        # 2. Check /browse behavior (as requested by user)
-        driver.get("https://www.netflix.com/browse")
-        time.sleep(2)
-        
-        # 3. Go to /account to definitively check for the on-hold banner
-        driver.get("https://www.netflix.com/account")
-        time.sleep(2)
+        # 1. Visit the account link with nftoken
+        driver.get(test_link)
+        time.sleep(4)
         
         current_url = driver.current_url.lower()
         
@@ -66,12 +53,11 @@ def check_account_status(cookie_dict):
         if "login" in current_url or "clearcookies" in current_url:
             return "dead"
             
-        # Execute JS to find the dark-background-banner reliably (language independent)
-        # This banner is displayed on the /account page when the account is on-hold.
-        is_on_hold = driver.execute_script("""
+        # 2. Check for the on-hold banner
+        is_on_hold = driver.execute_script('''
             const banner = document.querySelector('div[data-uia="dark-background-banner"]');
             return banner !== null;
-        """)
+        ''')
         
         if is_on_hold:
             return "on_hold"

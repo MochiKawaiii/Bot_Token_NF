@@ -387,7 +387,7 @@ def get_token_command(message):
                         pass
                     
                     try:
-                        status = account_checker.check_account_status(cookie_doc['cookie_data'])
+                        status = account_checker.check_account_status(link)
                     except Exception as check_e:
                         # Nếu Browserless lỗi (ví dụ chưa config token), bỏ qua check và trả link
                         print(f"Browserless check error: {check_e}")
