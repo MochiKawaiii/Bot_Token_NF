@@ -30,16 +30,22 @@ def insert_cookie(netflix_id, full_cookie_dict, source_file=""):
             "cookie_data": full_cookie_dict,
             "source": source_file,
             "is_alive": True,
+            "verified": False,
             "times_used": 0
         })
         return True
     return False
 
 def get_active_cookie():
-    """Lấy 1 cookie còn sống (is_alive=True), ưu tiên những cookie ít được sử dụng nhất"""
+    """Lấy 1 cookie còn sống (is_alive=True), ưu tiên những cookie đã verify và ít được sử dụng nhất"""
     db = get_db()
     cookies_col = db.cookies
-    cookie = cookies_col.find_one({"is_alive": True}, sort=[("times_used", 1)])
+    # Ưu tiên lấy cookie đã verified
+    cookie = cookies_col.find_one({"is_alive": True, "verified": True}, sort=[("times_used", 1)])
+    
+    # Nếu không có cookie verified nào, lấy cookie chưa verify
+    if not cookie:
+        cookie = cookies_col.find_one({"is_alive": True}, sort=[("times_used", 1)])
     
     if cookie:
         # Cập nhật số lần sử dụng
@@ -56,7 +62,16 @@ def mark_cookie_as_dead(netflix_id):
     cookies_col = db.cookies
     cookies_col.update_one(
         {"netflix_id": netflix_id},
-        {"$set": {"is_alive": False}}
+        {"$set": {"is_alive": False, "verified": False}}
+    )
+
+def mark_cookie_verified(netflix_id):
+    """Đánh dấu một cookie là đã xác thực thành công"""
+    db = get_db()
+    cookies_col = db.cookies
+    cookies_col.update_one(
+        {"netflix_id": netflix_id},
+        {"$set": {"verified": True}}
     )
 
 def count_stats():

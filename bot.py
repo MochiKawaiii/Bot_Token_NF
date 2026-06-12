@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify
 import database as db
 import netflix_token_extractor as extractor
 import netflix_tv_activator as tv_activator
+import netflix_account_checker as account_checker
 import threading
 from lang import get_text
 
@@ -353,65 +354,116 @@ def get_token_command(message):
     mark_rate_limit(user_id)
     loading_msg = bot.reply_to(message, t(user_id, "token_loading"))
 
-    # 2. Xử lý Cookies và API
-    max_retries = 5
-    for attempt in range(max_retries):
-        cookie_doc = db.get_active_cookie()
-        if not cookie_doc:
-            bot.edit_message_text(t(user_id, "no_cookie"),
-                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
-            return
+    # 2. Xử lý Cookies và API trong thread ngầm để tránh webhook timeout
+    def _process_token():
+        max_retries = 5
+        for attempt in range(max_retries):
+            cookie_doc = db.get_active_cookie()
+            if not cookie_doc:
+                try:
+                    bot.edit_message_text(t(user_id, "no_cookie"),
+                                          chat_id=message.chat.id, message_id=loading_msg.message_id)
+                except Exception:
+                    pass
+                return
 
-        netflix_id = cookie_doc['cookie_data'].get('NetflixId') or cookie_doc['cookie_data'].get('netflix_id')
-        if not netflix_id:
-            db.mark_cookie_as_dead(cookie_doc['netflix_id'])
-            save_dead_cookie_to_file(cookie_doc)
-            continue
+            netflix_id = cookie_doc['cookie_data'].get('NetflixId') or cookie_doc['cookie_data'].get('netflix_id')
+            if not netflix_id:
+                db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                save_dead_cookie_to_file(cookie_doc)
+                continue
+
+            try:
+                token, expires = extractor.fetch_nftoken(netflix_id)
+                link = extractor.build_nftoken_link(token)
+                expiry_str = extractor.format_expiry(expires)
+
+                # === BROWSERLESS ON-HOLD CHECK (Only if not verified) ===
+                if not cookie_doc.get('verified', False):
+                    try:
+                        bot.edit_message_text("🔄 Đang kiểm tra trạng thái tài khoản...\n*Please wait, verifying account...*",
+                                              chat_id=message.chat.id, message_id=loading_msg.message_id, parse_mode="Markdown")
+                    except Exception:
+                        pass
+                    
+                    try:
+                        status = account_checker.check_account_status(link)
+                    except Exception as check_e:
+                        # Nếu Browserless lỗi (ví dụ chưa config token), bỏ qua check và trả link
+                        print(f"Browserless check error: {check_e}")
+                        status = "active"
+
+                    if status == "on_hold":
+                        db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                        save_dead_cookie_to_file(cookie_doc)
+                        try:
+                            bot.edit_message_text("⚠️ Tài khoản đang bị tạm ngưng (On-hold).\n🔄 Đang đổi sang tài khoản khác...",
+                                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
+                        except Exception:
+                            pass
+                        time.sleep(1)
+                        continue
+                    elif status == "dead":
+                        db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                        save_dead_cookie_to_file(cookie_doc)
+                        try:
+                            bot.edit_message_text(t(user_id, "token_switching"),
+                                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
+                        except Exception:
+                            pass
+                        time.sleep(1)
+                        continue
+                    else:
+                        db.mark_cookie_verified(cookie_doc['netflix_id'])
+                # ========================================================
+
+                # Admin KHÔNG bị tính lượt
+                if not is_admin(user_id):
+                    db.increment_link_usage(user_id, "token")
+
+                result_text = t(user_id, "token_success", link=link, expiry=expiry_str)
+                if not is_admin(user_id):
+                    real_remain = remain - 1 if remain > 0 else 0
+                    result_text += t(user_id, "token_remain", remain=real_remain, cap=cap)
+
+                markup = InlineKeyboardMarkup()
+                markup.add(InlineKeyboardButton(
+                    t(user_id, "btn_report_error"),
+                    callback_data=f"err_{str(cookie_doc['_id'])}"
+                ))
+
+                try:
+                    bot.edit_message_text(result_text, chat_id=message.chat.id,
+                                          message_id=loading_msg.message_id, parse_mode="Markdown", reply_markup=markup)
+                except Exception:
+                    pass
+                return
+
+            except (extractor.requests.exceptions.HTTPError, ValueError) as e:
+                try:
+                    bot.edit_message_text(t(user_id, "token_switching"),
+                                          chat_id=message.chat.id, message_id=loading_msg.message_id)
+                except Exception:
+                    pass
+                db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                save_dead_cookie_to_file(cookie_doc)
+                time.sleep(1)
+
+            except Exception as e:
+                try:
+                    bot.edit_message_text(t(user_id, "token_error", error=e),
+                                          chat_id=message.chat.id, message_id=loading_msg.message_id)
+                except Exception:
+                    pass
+                return
 
         try:
-            token, expires = extractor.fetch_nftoken(netflix_id)
-            link = extractor.build_nftoken_link(token)
-            expiry_str = extractor.format_expiry(expires)
-
-            # Admin KHÔNG bị tính lượt
-            if not is_admin(user_id):
-                db.increment_link_usage(user_id, "token")
-
-            result_text = t(user_id, "token_success", link=link, expiry=expiry_str)
-            if not is_admin(user_id):
-                real_remain = remain - 1 if remain > 0 else 0
-                result_text += t(user_id, "token_remain", remain=real_remain, cap=cap)
-
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton(
-                t(user_id, "btn_report_error"),
-                callback_data=f"err_{str(cookie_doc['_id'])}"
-            ))
-
-            bot.edit_message_text(result_text, chat_id=message.chat.id,
-                                  message_id=loading_msg.message_id, parse_mode="Markdown", reply_markup=markup)
-            return
-
-        except (extractor.requests.exceptions.HTTPError, ValueError) as e:
-            try:
-                bot.edit_message_text(t(user_id, "token_switching"),
-                                      chat_id=message.chat.id, message_id=loading_msg.message_id)
-            except Exception:
-                pass
-            db.mark_cookie_as_dead(cookie_doc['netflix_id'])
-            save_dead_cookie_to_file(cookie_doc)
-            time.sleep(1)
-
-        except Exception as e:
-            bot.edit_message_text(t(user_id, "token_error", error=e),
+            bot.edit_message_text(t(user_id, "token_all_dead"),
                                   chat_id=message.chat.id, message_id=loading_msg.message_id)
-            return
+        except Exception:
+            pass
 
-    try:
-        bot.edit_message_text(t(user_id, "token_all_dead"),
-                              chat_id=message.chat.id, message_id=loading_msg.message_id)
-    except Exception:
-        pass
+    threading.Thread(target=_process_token).start()
 
 
 @bot.message_handler(commands=['tv'])
