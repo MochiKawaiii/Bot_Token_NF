@@ -378,43 +378,40 @@ def get_token_command(message):
                 link = extractor.build_nftoken_link(token)
                 expiry_str = extractor.format_expiry(expires)
 
-                # === BROWSERLESS ON-HOLD CHECK (Only if not verified) ===
-                if not cookie_doc.get('verified', False):
+                # === BROWSERLESS ON-HOLD CHECK (Every time) ===
+                try:
+                    bot.edit_message_text("🔄 Đang kiểm tra trạng thái tài khoản...\n*Please wait, verifying account...*",
+                                          chat_id=message.chat.id, message_id=loading_msg.message_id, parse_mode="Markdown")
+                except Exception:
+                    pass
+                
+                try:
+                    status = account_checker.check_account_status(link)
+                except Exception as check_e:
+                    # Nếu Browserless lỗi (ví dụ chưa config token), bỏ qua check và trả link
+                    print(f"Browserless check error: {check_e}")
+                    status = "active"
+
+                if status == "on_hold":
+                    db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                    save_dead_cookie_to_file(cookie_doc)
                     try:
-                        bot.edit_message_text("🔄 Đang kiểm tra trạng thái tài khoản...\n*Please wait, verifying account...*",
-                                              chat_id=message.chat.id, message_id=loading_msg.message_id, parse_mode="Markdown")
+                        bot.edit_message_text("⚠️ Tài khoản đang bị tạm ngưng (On-hold).\n🔄 Đang đổi sang tài khoản khác...",
+                                              chat_id=message.chat.id, message_id=loading_msg.message_id)
                     except Exception:
                         pass
-                    
+                    time.sleep(1)
+                    continue
+                elif status == "dead":
+                    db.mark_cookie_as_dead(cookie_doc['netflix_id'])
+                    save_dead_cookie_to_file(cookie_doc)
                     try:
-                        status = account_checker.check_account_status(link)
-                    except Exception as check_e:
-                        # Nếu Browserless lỗi (ví dụ chưa config token), bỏ qua check và trả link
-                        print(f"Browserless check error: {check_e}")
-                        status = "active"
-
-                    if status == "on_hold":
-                        db.mark_cookie_as_dead(cookie_doc['netflix_id'])
-                        save_dead_cookie_to_file(cookie_doc)
-                        try:
-                            bot.edit_message_text("⚠️ Tài khoản đang bị tạm ngưng (On-hold).\n🔄 Đang đổi sang tài khoản khác...",
-                                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
-                        except Exception:
-                            pass
-                        time.sleep(1)
-                        continue
-                    elif status == "dead":
-                        db.mark_cookie_as_dead(cookie_doc['netflix_id'])
-                        save_dead_cookie_to_file(cookie_doc)
-                        try:
-                            bot.edit_message_text(t(user_id, "token_switching"),
-                                                  chat_id=message.chat.id, message_id=loading_msg.message_id)
-                        except Exception:
-                            pass
-                        time.sleep(1)
-                        continue
-                    else:
-                        db.mark_cookie_verified(cookie_doc['netflix_id'])
+                        bot.edit_message_text(t(user_id, "token_switching"),
+                                              chat_id=message.chat.id, message_id=loading_msg.message_id)
+                    except Exception:
+                        pass
+                    time.sleep(1)
+                    continue
                 # ========================================================
 
                 # Admin KHÔNG bị tính lượt
