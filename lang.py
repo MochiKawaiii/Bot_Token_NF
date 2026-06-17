@@ -16,21 +16,21 @@ TEXTS = {
         "welcome_admin": (
             "👑 *Xin chào CHỦ NHÂN (ADMIN)!*\n\n"
             "Các lệnh hệ thống của bạn:\n"
-            "🔗 `/get_token` - Rút 1 tài khoản sinh Link xem Netflix.\n"
+            "🔗 `/get_token` - Rút 1 cookie sinh Link xem Netflix.\n"
             "📺 `/tv <mã 8 số>` - Kích hoạt đăng nhập trực tiếp trên TV.\n"
-            "📊 `/stats` - Xem số lượng tài khoản dự trữ trong DB.\n"
+            "📊 `/stats` - Xem số lượng cookie dự trữ trong DB.\n"
             "🗓 `/checkin` - Điểm danh ngày mới.\n"
             "👥 `/ref` - Mời bạn bè để nhận thêm lượt.\n"
             "👤 `/profile` - Xem thông tin cá nhân.\n"
             "🎬 `/guide` - Hướng dẫn sử dụng bot.\n"
             "🌐 `/language` - Đổi ngôn ngữ.\n"
-            "📝 Nhận dạng trực tiếp: Bạn có thể đưa file `tài khoản` (.txt, .json) vào trực tiếp đây để nạp.\n"
-            "🗑 `/clear_tài khoảns` - Xoá toàn bộ Database Tài khoản.\n"
+            "📝 Nhận dạng trực tiếp: Bạn có thể đưa file `cookie` (.txt, .json) vào trực tiếp đây để nạp.\n"
+            "🗑 `/clear_cookies` - Xoá toàn bộ Database Cookie.\n"
         ),
         "welcome_user": (
             "🎬 *Netflix Token Extractor Bot*\n\n"
             "Lệnh cung cấp:\n"
-            "🔗 `/get_token` - Rút 1 tài khoản sinh Link xem Netflix.\n"
+            "🔗 `/get_token` - Rút 1 cookie sinh Link xem Netflix.\n"
             "📺 `/tv <mã 8 số>` - Kích hoạt đăng nhập trực tiếp trên TV.\n"
             "🗓 `/checkin` - Điểm danh mỗi ngày để lấy được thêm lượt.\n"
             "👥 `/ref` - Mời bạn bè để nhận thêm lượt.\n"
@@ -121,19 +121,19 @@ TEXTS = {
             "  ├ 🔗 Get Token: `{token_uses_today}` lượt\n"
             "  └ 📺 Login TV: `{tv_uses_today}` lượt\n"
             "═══════════════════\n"
-            "🍪 *Sức khỏe Kho Tài khoản:*\n"
-            "- Trữ lượng còn Sống: `{tài khoản_alive}` / Tổng đã nạp `{tài khoản_total}` cục\n"
+            "🍪 *Sức khỏe Kho Cookie:*\n"
+            "- Trữ lượng còn Sống: `{cookie_alive}` / Tổng đã nạp `{cookie_total}` cục\n"
             "- 🎟 Tổng số Link đã phát ra: `{total_generated} lượt`\n"
         ),
         "stats_error": "❌ Lỗi truy cập Database: {error}",
 
-        # === /clear_tài khoảns (Admin) ===
+        # === /clear_cookies (Admin) ===
         "clear_no_perm": "❌ Bạn không có quyền thực hiện lệnh này.",
         "clear_confirm": "⚠️ *BẠN CÓ CHẮC CHẮN MUỐN XÓA TOÀN BỘ COOKIE?*\n\nHành động này không thể hoàn tác!",
         "clear_confirm_yes": "✅ Xác nhận xóa",
         "clear_confirm_no": "❌ Hủy bỏ",
-        "clear_done": "🗑 Đã xóa {count} tài khoảns khỏi cơ sở dữ liệu.",
-        "clear_cancelled": "👍 Đã hủy. Không có tài khoản nào bị xóa.",
+        "clear_done": "🗑 Đã xóa {count} cookies khỏi cơ sở dữ liệu.",
+        "clear_cancelled": "👍 Đã hủy. Không có cookie nào bị xóa.",
         "clear_error": "❌ Lỗi: {error}",
 
         # === /get_token ===
@@ -141,7 +141,7 @@ TEXTS = {
         "token_loading": "⏳ Đang tìm tài khoản khả dụng và tạo token, vui lòng chờ...",
         "token_verifying": "🔄 Đang kiểm tra trạng thái tài khoản...",
         "token_on_hold": "⚠️ Tài khoản đang bị tạm ngưng (On-hold).\n🔄 Đang đổi sang tài khoản khác...",
-        "no_tài khoản": "❌ Không có tài khoản nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!",
+        "no_cookie": "❌ Không có tài khoản nào 'sống' trong DataBase. Liên hệ Admin để nạp thêm!",
         "token_switching": "♻️ Tài khoản vừa chọn bị từ chối, đang thử tự động lục tài khoản khác...",
         "token_success": (
             "✅ *Lấy NFToken thành công!*\n\n"
@@ -159,7 +159,7 @@ TEXTS = {
         "tv_loading": "⏳ Đang kết nối Chrome và xử lý mã TV `{code}`.\n🕐 Quá trình này mất 15-30 giây, vui lòng chờ...",
         "tv_success": "✅ **Kích hoạt TV Thành Công!**\n\n📺 Hãy nhìn lên màn hình TV của bạn, Netflix đã tự động đăng nhập!\n\n💡 Lượt dùng còn lại trong ngày: `{remain}/{cap}`",
         "tv_invalid_code": "❌ Lỗi Mã TV: {error}",
-        "tv_tài khoản_switch": "♻️ Tài khoản #{attempt} không hỗ trợ, đang đổi tài khoản khác...",
+        "tv_cookie_switch": "♻️ Tài khoản #{attempt} không hỗ trợ, đang đổi tài khoản khác...",
         "tv_connection_error": "❌ Lỗi kết nối: {error}",
         "tv_all_dead": "❌ Đã thử nhiều tài khoản nhưng không cái nào hỗ trợ TV. Vui lòng thử lại sau!",
         "tv_unexpected": "❌ Lỗi không mong đợi: {error}",
@@ -171,16 +171,16 @@ TEXTS = {
             "👤 Người báo cáo: {first_name}\n"
             "👤 Username: {username}\n"
             "🆔 Telegram ID: `{user_id}`\n"
-            "🔑 ObjectID Tài khoản lỗi: `{tài khoản_id}`\n\n"
-            "Hãy kiểm tra trong Database Tài khoản Mongo hoặc xem file trong thư mục `Tài khoản_loi` nếu chạy ở máy chủ cục bộ!"
+            "🔑 ObjectID Cookie lỗi: `{cookie_id}`\n\n"
+            "Hãy kiểm tra trong Database Cookie Mongo hoặc xem file trong thư mục `Cookie_loi` nếu chạy ở máy chủ cục bộ!"
         ),
 
         # === Document Upload (Admin) ===
-        "doc_no_perm": "❌ Chỉ Admin mới có quyền tải file tài khoản lên cơ sở dữ liệu.",
-        "doc_parse_error": "❌ Lỗi giải mã file Tài khoản: {error}",
+        "doc_no_perm": "❌ Chỉ Admin mới có quyền tải file cookie lên cơ sở dữ liệu.",
+        "doc_parse_error": "❌ Lỗi giải mã file Cookie: {error}",
         "doc_no_netflix_id": "❌ Không tìm thấy `NetflixId` hợp lệ trong file này.",
-        "doc_success": "✅ Đã thêm tài khoản từ `{filename}` vào DB thành công!",
-        "doc_duplicate": "ℹ️ Tài khoản trong file `{filename}` đã từng được lưu vào DB trước đây rồi.",
+        "doc_success": "✅ Đã thêm cookie từ `{filename}` vào DB thành công!",
+        "doc_duplicate": "ℹ️ Cookie trong file `{filename}` đã từng được lưu vào DB trước đây rồi.",
         "doc_error": "❌ Lỗi xử lý file: {error}",
 
         # === Menu Commands ===
@@ -194,7 +194,7 @@ TEXTS = {
         "menu_start": "Xem thông tin & Hướng dẫn",
         "menu_ping": "Kiểm tra kết nối Bot",
         "menu_stats": "Xem thống kê DB (Admin)",
-        "menu_clear": "Xoá DB Tài khoản (Admin)",
+        "menu_clear": "Xoá DB Cookie (Admin)",
     },
 
     "en": {
@@ -209,16 +209,16 @@ TEXTS = {
         "welcome_admin": (
             "👑 *Welcome, ADMIN!*\n\n"
             "Your system commands:\n"
-            "🔗 `/get_token` - Extract a account to generate a Netflix login link.\n"
+            "🔗 `/get_token` - Extract a cookie to generate a Netflix login link.\n"
             "📺 `/tv <8-digit code>` - Activate Netflix login directly on TV.\n"
-            "📊 `/stats` - View account stock in DB.\n"
+            "📊 `/stats` - View cookie stock in DB.\n"
             "🗓 `/checkin` - Daily check-in.\n"
             "👥 `/ref` - Invite friends for bonus uses.\n"
             "👤 `/profile` - View your profile.\n"
             "🎬 `/guide` - How to use this bot.\n"
             "🌐 `/language` - Change language.\n"
-            "📝 Direct upload: Send a `account` file (.txt, .json) here to import.\n"
-            "🗑 `/clear_accounts` - Clear all accounts from Database.\n"
+            "📝 Direct upload: Send a `cookie` file (.txt, .json) here to import.\n"
+            "🗑 `/clear_cookies` - Clear all cookies from Database.\n"
         ),
         "welcome_user": (
             "🎬 *Netflix Token Extractor Bot*\n\n"
@@ -314,19 +314,19 @@ TEXTS = {
             "  ├ 🔗 Get Token: `{token_uses_today}` uses\n"
             "  └ 📺 TV Login: `{tv_uses_today}` uses\n"
             "═══════════════════\n"
-            "🍪 *Account Health:*\n"
-            "- Alive: `{account_alive}` / Total imported `{account_total}`\n"
+            "🍪 *Cookie Health:*\n"
+            "- Alive: `{cookie_alive}` / Total imported `{cookie_total}`\n"
             "- 🎟 Total links generated: `{total_generated}`\n"
         ),
         "stats_error": "❌ Database access error: {error}",
 
-        # === /clear_accounts (Admin) ===
+        # === /clear_cookies (Admin) ===
         "clear_no_perm": "❌ You don't have permission to do this.",
         "clear_confirm": "⚠️ *ARE YOU SURE YOU WANT TO DELETE ALL COOKIES?*\n\nThis action cannot be undone!",
         "clear_confirm_yes": "✅ Confirm delete",
         "clear_confirm_no": "❌ Cancel",
-        "clear_done": "🗑 Deleted {count} accounts from the database.",
-        "clear_cancelled": "👍 Cancelled. No accounts were deleted.",
+        "clear_done": "🗑 Deleted {count} cookies from the database.",
+        "clear_cancelled": "👍 Cancelled. No cookies were deleted.",
         "clear_error": "❌ Error: {error}",
 
         # === /get_token ===
@@ -334,7 +334,7 @@ TEXTS = {
         "token_loading": "⏳ Finding an available account and generating token, please wait...",
         "token_verifying": "🔄 Please wait, verifying account...",
         "token_on_hold": "⚠️ Account is on-hold.\n🔄 Switching to another account...",
-        "no_account": "❌ No active accounts in the Database. Contact Admin to add more!",
+        "no_cookie": "❌ No active accounts in the Database. Contact Admin to add more!",
         "token_switching": "♻️ Account rejected, automatically trying another one...",
         "token_success": (
             "✅ *NFToken generated successfully!*\n\n"
@@ -352,7 +352,7 @@ TEXTS = {
         "tv_loading": "⏳ Connecting to Chrome and processing TV code `{code}`.\n🕐 This takes 15-30 seconds, please wait...",
         "tv_success": "✅ **TV Activation Successful!**\n\n📺 Check your TV screen — Netflix has been logged in automatically!\n\n💡 Remaining uses today: `{remain}/{cap}`",
         "tv_invalid_code": "❌ TV Code Error: {error}",
-        "tv_account_switch": "♻️ Account #{attempt} not supported, switching to another...",
+        "tv_cookie_switch": "♻️ Account #{attempt} not supported, switching to another...",
         "tv_connection_error": "❌ Connection error: {error}",
         "tv_all_dead": "❌ Tried multiple accounts but none support TV. Please try again later!",
         "tv_unexpected": "❌ Unexpected error: {error}",
@@ -364,16 +364,16 @@ TEXTS = {
             "👤 Reporter: {first_name}\n"
             "👤 Username: {username}\n"
             "🆔 Telegram ID: `{user_id}`\n"
-            "🔑 Account ObjectID: `{account_id}`\n\n"
-            "Check the MongoDB Account Database or the `Account_loi` folder on the local server!"
+            "🔑 Cookie ObjectID: `{cookie_id}`\n\n"
+            "Check the MongoDB Cookie Database or the `Cookie_loi` folder on the local server!"
         ),
 
         # === Document Upload (Admin) ===
-        "doc_no_perm": "❌ Only Admin can upload account files to the database.",
-        "doc_parse_error": "❌ Error parsing account file: {error}",
+        "doc_no_perm": "❌ Only Admin can upload cookie files to the database.",
+        "doc_parse_error": "❌ Error parsing cookie file: {error}",
         "doc_no_netflix_id": "❌ No valid `NetflixId` found in this file.",
-        "doc_success": "✅ Successfully added account from `{filename}` to DB!",
-        "doc_duplicate": "ℹ️ Account from `{filename}` already exists in the DB.",
+        "doc_success": "✅ Successfully added cookie from `{filename}` to DB!",
+        "doc_duplicate": "ℹ️ Cookie from `{filename}` already exists in the DB.",
         "doc_error": "❌ Error processing file: {error}",
 
         # === Menu Commands ===
@@ -387,7 +387,7 @@ TEXTS = {
         "menu_start": "Info & Help",
         "menu_ping": "Check bot connection",
         "menu_stats": "View DB stats (Admin)",
-        "menu_clear": "Clear Account DB (Admin)",
+        "menu_clear": "Clear Cookie DB (Admin)",
     }
 }
 
