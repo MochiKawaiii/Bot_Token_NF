@@ -380,7 +380,7 @@ def get_token_command(message):
 
                 # === BROWSERLESS ON-HOLD CHECK (Every time) ===
                 try:
-                    bot.edit_message_text("🔄 Đang kiểm tra trạng thái tài khoản...\n*Please wait, verifying account...*",
+                    bot.edit_message_text(t(user_id, "token_verifying"),
                                           chat_id=message.chat.id, message_id=loading_msg.message_id, parse_mode="Markdown")
                 except Exception:
                     pass
@@ -396,7 +396,7 @@ def get_token_command(message):
                     db.mark_cookie_as_dead(cookie_doc['netflix_id'])
                     save_dead_cookie_to_file(cookie_doc)
                     try:
-                        bot.edit_message_text("⚠️ Tài khoản đang bị tạm ngưng (On-hold).\n🔄 Đang đổi sang tài khoản khác...",
+                        bot.edit_message_text(t(user_id, "token_on_hold"),
                                               chat_id=message.chat.id, message_id=loading_msg.message_id)
                     except Exception:
                         pass
