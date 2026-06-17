@@ -53,10 +53,11 @@ def check_account_status(link):
         if "login" in current_url or "clearcookies" in current_url:
             return "dead"
             
-        # 2. Check for the on-hold banner
+        # 2. Check for the on-hold banner or update payment button
         is_on_hold = driver.execute_script('''
             const banner = document.querySelector('div[data-uia="dark-background-banner"]');
-            return banner !== null;
+            const updateBtn = document.querySelector('[data-uia="UPDATE_PAYMENT_METHOD"]');
+            return banner !== null || updateBtn !== null;
         ''')
         
         if is_on_hold:
