@@ -176,25 +176,72 @@ def get_user(user_id, username=""):
     return user
 
 def check_in_user(user_id, username=""):
-    """Điểm danh User, nếu reset qua ngày sẽ được update. Streak = Số ngày."""
+    """Điểm danh User. Nếu quên 1 ngày thì reset streak về 0."""
     user = get_user(user_id, username)
     today = get_vietnam_date()
     
     if user.get("last_checkin_date") == today:
         # Hôm nay đã điểm danh rồi
-        return False, user.get("streak", 0) 
-        
+        return False, user.get("streak", 0)
+    
     db = get_db()
-    new_streak = user.get("streak", 0) + 1
+    last_checkin = user.get("last_checkin_date", "")
+    
+    # Kiểm tra xem có liên tục không (hôm qua có điểm danh không)
+    if last_checkin:
+        from datetime import datetime, timedelta
+        tz = pytz.timezone('Asia/Ho_Chi_Minh')
+        today_dt = datetime.now(tz).date()
+        try:
+            last_dt = datetime.strptime(last_checkin, '%Y-%m-%d').date()
+            diff = (today_dt - last_dt).days
+            if diff == 1:
+                # Liên tục → cộng streak
+                new_streak = user.get("streak", 0) + 1
+            else:
+                # Bỏ lỡ → reset về 1
+                new_streak = 1
+        except ValueError:
+            new_streak = 1
+    else:
+        # Chưa từng điểm danh
+        new_streak = 1
+    
     db.users.update_one(
         {"user_id": user_id},
         {"$set": {"last_checkin_date": today, "streak": new_streak, "username": username}}
     )
     return True, new_streak
 
+def get_streak_bonus(user):
+    """Tính bonus lượt từ streak điểm danh. 3 ngày = +1, 5+ ngày = +2."""
+    streak = user.get("streak", 0)
+    # Kiểm tra streak có còn hợp lệ không (hôm nay hoặc hôm qua phải điểm danh)
+    last_checkin = user.get("last_checkin_date", "")
+    if last_checkin:
+        from datetime import datetime
+        tz = pytz.timezone('Asia/Ho_Chi_Minh')
+        today_dt = datetime.now(tz).date()
+        try:
+            last_dt = datetime.strptime(last_checkin, '%Y-%m-%d').date()
+            diff = (today_dt - last_dt).days
+            if diff > 1:
+                # Đã bỏ lỡ, streak không còn hiệu lực
+                return 0
+        except ValueError:
+            return 0
+    else:
+        return 0
+    
+    if streak >= 5:
+        return 2
+    elif streak >= 3:
+        return 1
+    return 0
+
 def can_generate_link(user_id, username=""):
     """
-    Kiểm tra quota. Tính cả bonus từ referral.
+    Kiểm tra quota. Tính cả bonus từ referral + streak.
     Trả về bộ 3: (Can_generate_boolean, remain_quota, total_limit)
     """
     user = get_user(user_id, username)
@@ -211,7 +258,6 @@ def can_generate_link(user_id, username=""):
     else:
         usage = user.get("usage_today", 0)
         
-    streak = user.get("streak", 0)
     referral_count = user.get("referral_count", 0)
     
     # Tính hạn mức tối đa: base 5
@@ -222,6 +268,9 @@ def can_generate_link(user_id, username=""):
         limit += 2
     elif referral_count >= 1:
         limit += 1
+    
+    # Bonus từ streak: 3 ngày = +1, 5+ ngày = +2
+    limit += get_streak_bonus(user)
         
     if usage < limit:
         return True, limit - usage, limit
@@ -258,6 +307,7 @@ def get_profile(user_id, username=""):
         usage_today = user.get("usage_today", 0)
     
     ref_count = user.get("referral_count", 0)
+    streak_bonus = get_streak_bonus(user)
     
     # Tính limit
     limit = 5
@@ -265,11 +315,13 @@ def get_profile(user_id, username=""):
         limit += 2
     elif ref_count >= 1:
         limit += 1
+    limit += streak_bonus
     
     return {
         "user_id": user_id,
         "username": user.get("username", username),
         "streak": user.get("streak", 0),
+        "streak_bonus": streak_bonus,
         "usage_today": usage_today,
         "limit": limit,
         "remain": max(0, limit - usage_today),

@@ -221,6 +221,7 @@ def profile_command(message):
           uid=p['user_id'],
           created_at=p['created_at'],
           streak=p['streak'],
+          streak_bonus=p['streak_bonus'],
           usage_today=p['usage_today'],
           limit=p['limit'],
           remain=p['remain'],
@@ -267,9 +268,14 @@ def checkin_command(message):
 
     success, streak = db.check_in_user(user_id, username)
     if success:
-        bot.reply_to(message, t(user_id, "checkin_success", streak=streak), parse_mode="Markdown")
+        # Tính streak_bonus sau khi đã cập nhật streak
+        user = db.get_user(user_id)
+        streak_bonus = db.get_streak_bonus(user)
+        bot.reply_to(message, t(user_id, "checkin_success", streak=streak, streak_bonus=streak_bonus), parse_mode="Markdown")
     else:
-        bot.reply_to(message, t(user_id, "checkin_already", streak=streak), parse_mode="Markdown")
+        user = db.get_user(user_id)
+        streak_bonus = db.get_streak_bonus(user)
+        bot.reply_to(message, t(user_id, "checkin_already", streak=streak, streak_bonus=streak_bonus), parse_mode="Markdown")
 
 
 @bot.message_handler(commands=['stats'])

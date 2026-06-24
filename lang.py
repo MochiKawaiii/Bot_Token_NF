@@ -39,16 +39,20 @@ TEXTS = {
             "🌐 `/language` - Đổi ngôn ngữ.\n\n"
             "⚡️ *Cách tăng lượt dùng:*\n"
             "- Mặc định: 5 lượt/ngày (Link + TV tính chung).\n"
+            "- Điểm danh 3 ngày liên tục: +1 lượt/ngày.\n"
+            "- Điểm danh 5 ngày liên tục: +2 lượt/ngày.\n"
             "- Mời 1 người: +1 lượt/ngày (vĩnh viễn).\n"
             "- Mời 3+ người: +2 lượt/ngày (vĩnh viễn).\n"
+            "⚠️ _Quên điểm danh 1 ngày sẽ bị reset chuỗi về 0!_\n"
         ),
 
         # === /ping ===
         "pong": "Pong! Tôi vẫn đang sống và nhận tin nhắn!",
 
         # === /checkin ===
-        "checkin_success": "🎉 Bạn đã điểm danh thành công ngày hôm nay!\n🔥 Chuỗi điểm danh hiện tại: *{streak} ngày*",
-        "checkin_already": "⚠️ Hôm nay bạn đã điểm danh rồi mà!\n🔥 Nhắc lại chuỗi điểm danh hiện tại: *{streak} ngày*",
+        "checkin_success": "🎉 Bạn đã điểm danh thành công ngày hôm nay!\n🔥 Chuỗi điểm danh hiện tại: *{streak} ngày*\n🎁 Bonus từ chuỗi: *+{streak_bonus} lượt/ngày*",
+        "checkin_already": "⚠️ Hôm nay bạn đã điểm danh rồi mà!\n🔥 Nhắc lại chuỗi điểm danh hiện tại: *{streak} ngày*\n🎁 Bonus từ chuỗi: *+{streak_bonus} lượt/ngày*",
+        "checkin_reset": "⚠️ Bạn đã bỏ lỡ 1 ngày nên chuỗi bị reset!\n🔥 Bắt đầu lại: *{streak} ngày*",
 
         # === /ref ===
         "ref_info": (
@@ -73,7 +77,7 @@ TEXTS = {
             "🆔 ID: `{uid}`\n"
             "📅 Ngày tham gia: `{created_at}`\n"
             "═══════════════════\n"
-            "🔥 Chuỗi điểm danh: *{streak} ngày*\n"
+            "🔥 Chuỗi điểm danh: *{streak} ngày* (+{streak_bonus} lượt)\n"
             "🎟 Lượt hôm nay: *{usage_today}/{limit}* - còn {remain}\n"
             "📊 Tổng lượt đã dùng: *{total_usage}*\n"
             "👥 Số người đã mời: *{referral_count}*\n"
@@ -232,16 +236,20 @@ TEXTS = {
             "🌐 `/language` - Change language.\n\n"
             "⚡️ *How to get more uses:*\n"
             "- Default: 5 uses/day (Link + TV shared).\n"
+            "- 3-day check-in streak: +1 use/day.\n"
+            "- 5-day check-in streak: +2 uses/day.\n"
             "- Invite 1 friend: +1 use/day (permanent).\n"
             "- Invite 3+ friends: +2 uses/day (permanent).\n"
+            "⚠️ _Miss 1 day and your streak resets to 0!_\n"
         ),
 
         # === /ping ===
         "pong": "Pong! I'm alive and receiving messages!",
 
         # === /checkin ===
-        "checkin_success": "🎉 You have successfully checked in today!\n🔥 Current streak: *{streak} days*",
-        "checkin_already": "⚠️ You have already checked in today!\n🔥 Current streak: *{streak} days*",
+        "checkin_success": "🎉 You have successfully checked in today!\n🔥 Current streak: *{streak} days*\n🎁 Streak bonus: *+{streak_bonus} uses/day*",
+        "checkin_already": "⚠️ You have already checked in today!\n🔥 Current streak: *{streak} days*\n🎁 Streak bonus: *+{streak_bonus} uses/day*",
+        "checkin_reset": "⚠️ You missed a day so your streak was reset!\n🔥 Starting over: *{streak} days*",
 
         # === /ref ===
         "ref_info": (
@@ -266,7 +274,7 @@ TEXTS = {
             "🆔 ID: `{uid}`\n"
             "📅 Joined: `{created_at}`\n"
             "═══════════════════\n"
-            "🔥 Check-in streak: *{streak} days*\n"
+            "🔥 Check-in streak: *{streak} days* (+{streak_bonus} uses)\n"
             "🎟 Uses today: *{usage_today}/{limit}* - {remain} left\n"
             "📊 Total uses all-time: *{total_usage}*\n"
             "👥 Friends invited: *{referral_count}*\n"
