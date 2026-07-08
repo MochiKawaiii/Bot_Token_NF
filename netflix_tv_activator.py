@@ -1,19 +1,16 @@
 """
-Netflix TV Activator - Remote Chrome via Browserless.io
+Netflix TV Activator - Remote Chrome via Browserless.io (V2 - Playwright)
 Chrome chạy trên cloud Browserless.io, Bot chỉ gửi lệnh qua mạng.
 RAM trên Render gần như bằng 0.
 """
 import os
-import time
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 BROWSERLESS_TOKEN = os.environ.get("BROWSERLESS_TOKEN", "")
 TV_URL = "https://www.netflix.com/tv8"
+
+# Browserless V2 endpoint (WebSocket)
+BROWSERLESS_WS = f"wss://production-sfo.browserless.io/chrome/playwright?token={BROWSERLESS_TOKEN}"
 
 
 def activate_tv_code(cookie_dict, code):
@@ -29,114 +26,92 @@ def activate_tv_code(cookie_dict, code):
     if not BROWSERLESS_TOKEN:
         raise Exception("BROWSERLESS_TOKEN is not configured!")
     
-    driver = None
-    try:
-        # === Kết nối tới Chrome remote ===
-        opts = Options()
-        opts.add_argument("--headless=new")
-        opts.add_argument("--no-sandbox")
-        opts.add_argument("--disable-dev-shm-usage")
-        opts.add_argument("--disable-gpu")
-        opts.add_argument("--disable-extensions")
-        opts.add_argument("--window-size=800,600")
-        opts.add_argument("--disable-blink-features=AutomationControlled")
-        opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
-        
-        # Tắt hình ảnh để nhanh hơn
-        prefs = {"profile.managed_default_content_settings.images": 2}
-        opts.add_experimental_option("prefs", prefs)
-        
-        # Truyền API token qua capability (cách đúng của Browserless.io)
-        opts.set_capability("browserless:token", BROWSERLESS_TOKEN)
-        
-        # Kết nối tới Browserless.io (Chrome chạy trên cloud của họ)
-        driver = webdriver.Remote(
-            command_executor="https://chrome.browserless.io/webdriver",
-            options=opts
-        )
-        driver.set_page_load_timeout(30)
-        driver.set_script_timeout(15)
-        
-        # === Bước 1: Set cookie Netflix ===
-        driver.get("https://www.netflix.com/browse")
-        time.sleep(2)
-        
-        nf_id = cookie_dict.get("NetflixId") or cookie_dict.get("netflix_id", "")
-        sec_id = cookie_dict.get("SecureNetflixId") or cookie_dict.get("secure_netflix_id", "")
-        
-        if nf_id:
-            driver.add_cookie({"name": "NetflixId", "value": nf_id, "domain": ".netflix.com", "path": "/"})
-        if sec_id:
-            driver.add_cookie({"name": "SecureNetflixId", "value": sec_id, "domain": ".netflix.com", "path": "/"})
-        
-        # === Bước 2: Vào trang TV8 ===
-        driver.get(TV_URL)
-        
-        # Chờ ô nhập mã xuất hiện
+    with sync_playwright() as pw:
+        browser = None
         try:
-            WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[data-uia="pin-number-0"]'))
+            # === Kết nối tới Chrome remote (Browserless V2) ===
+            browser = pw.chromium.connect(BROWSERLESS_WS)
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+                viewport={"width": 800, "height": 600}
             )
-        except TimeoutException:
-            url = driver.current_url.lower()
-            if "login" in url:
-                raise ValueError("Cookie expired or plan does not support TV.")
-            raise ValueError("Cannot load TV8 page, cookie may have expired.")
-        
-        # === Bước 3: Nhập từng chữ số ===
-        for i, digit in enumerate(code):
+            page = context.new_page()
+            page.set_default_timeout(30000)
+            
+            # === Bước 1: Set cookie Netflix ===
+            nf_id = cookie_dict.get("NetflixId") or cookie_dict.get("netflix_id", "")
+            sec_id = cookie_dict.get("SecureNetflixId") or cookie_dict.get("secure_netflix_id", "")
+            
+            cookies_to_add = []
+            if nf_id:
+                cookies_to_add.append({"name": "NetflixId", "value": nf_id, "domain": ".netflix.com", "path": "/"})
+            if sec_id:
+                cookies_to_add.append({"name": "SecureNetflixId", "value": sec_id, "domain": ".netflix.com", "path": "/"})
+            
+            if cookies_to_add:
+                context.add_cookies(cookies_to_add)
+            
+            # === Bước 2: Vào trang TV8 ===
+            page.goto(TV_URL, wait_until="domcontentloaded")
+            
+            # Chờ ô nhập mã xuất hiện
             try:
-                pin = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, f'input[data-uia="pin-number-{i}"]'))
-                )
-                pin.clear()
-                pin.send_keys(digit)
-                time.sleep(0.15)
-            except Exception:
-                raise Exception(f"Cannot enter digit {i+1}")
-        
-        # === Bước 4: Bấm Submit ===
-        time.sleep(0.5)
-        try:
-            btn = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-uia="witcher-code-submit"]'))
-            )
-            btn.click()
-        except TimeoutException:
-            raise ValueError("Invalid TV Code: Submit button not clickable.")
-        
-        # === Bước 5: Chờ kết quả ===
-        time.sleep(6)
-        
-        # Kiểm tra lỗi hiển thị
-        try:
-            err = driver.find_element(By.CSS_SELECTOR, 'div[data-uia="witcher-code-input-error"]')
-            if err.text.strip():
-                raise ValueError(f"Invalid TV Code: {err.text.strip()}")
-        except NoSuchElementException:
-            pass
-        
-        url = driver.current_url.lower()
-        
-        # Thành công: redirect sang success/browse
-        if "success" in url or "browse" in url or "tv/out" in url:
-            return True
-        
-        # Bị redirect về login
-        if "login" in url and "/tv" not in url:
-            raise ValueError("Cookie rejected for TV feature.")
-        
-        # Form vẫn còn → mã sai
-        try:
-            driver.find_element(By.CSS_SELECTOR, 'input[data-uia="pin-number-0"]')
-            raise ValueError("Invalid TV Code: Code is invalid or expired (5 min limit).")
-        except NoSuchElementException:
+                page.wait_for_selector('input[data-uia="pin-number-0"]', timeout=20000)
+            except PlaywrightTimeoutError:
+                url = page.url.lower()
+                if "login" in url:
+                    raise ValueError("Cookie expired or plan does not support TV.")
+                raise ValueError("Cannot load TV8 page, cookie may have expired.")
+            
+            # === Bước 3: Nhập từng chữ số ===
+            for i, digit in enumerate(code):
+                try:
+                    pin = page.wait_for_selector(f'input[data-uia="pin-number-{i}"]', timeout=5000)
+                    pin.fill("")
+                    pin.type(digit, delay=50)
+                    page.wait_for_timeout(150)
+                except Exception:
+                    raise Exception(f"Cannot enter digit {i+1}")
+            
+            # === Bước 4: Bấm Submit ===
+            page.wait_for_timeout(500)
+            try:
+                btn = page.wait_for_selector('button[data-uia="witcher-code-submit"]', timeout=5000)
+                btn.click()
+            except PlaywrightTimeoutError:
+                raise ValueError("Invalid TV Code: Submit button not clickable.")
+            
+            # === Bước 5: Chờ kết quả ===
+            page.wait_for_timeout(6000)
+            
+            # Kiểm tra lỗi hiển thị
+            err_el = page.query_selector('div[data-uia="witcher-code-input-error"]')
+            if err_el:
+                err_text = err_el.inner_text().strip()
+                if err_text:
+                    raise ValueError(f"Invalid TV Code: {err_text}")
+            
+            url = page.url.lower()
+            
+            # Thành công: redirect sang success/browse
+            if "success" in url or "browse" in url or "tv/out" in url:
+                return True
+            
+            # Bị redirect về login
+            if "login" in url and "/tv" not in url:
+                raise ValueError("Cookie rejected for TV feature.")
+            
+            # Form vẫn còn → mã sai
+            form_el = page.query_selector('input[data-uia="pin-number-0"]')
+            if form_el:
+                raise ValueError("Invalid TV Code: Code is invalid or expired (5 min limit).")
+            
             # Form biến mất → thành công!
             return True
-    
-    finally:
-        if driver:
-            try:
-                driver.quit()
-            except Exception:
-                pass
+        
+        finally:
+            if browser:
+                try:
+                    browser.close()
+                except Exception:
+                    pass

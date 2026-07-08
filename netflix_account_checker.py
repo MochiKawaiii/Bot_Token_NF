@@ -1,10 +1,11 @@
 import os
-import time
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 BROWSERLESS_TOKEN = os.environ.get("BROWSERLESS_TOKEN", "")
+
+# Browserless V2 endpoint (WebSocket)
+BROWSERLESS_WS = f"wss://production-sfo.browserless.io/chrome/playwright?token={BROWSERLESS_TOKEN}"
+
 
 def check_account_status(link):
     """
@@ -17,60 +18,46 @@ def check_account_status(link):
     # Change /browse to /account to go directly to the account page where the banner is
     test_link = link.replace('/browse?nftoken=', '/account?nftoken=')
     
-    driver = None
-    try:
-        # === Connect to Browserless remote Chrome ===
-        opts = Options()
-        opts.add_argument("--headless=new")
-        opts.add_argument("--no-sandbox")
-        opts.add_argument("--disable-dev-shm-usage")
-        opts.add_argument("--disable-gpu")
-        opts.add_argument("--disable-extensions")
-        opts.add_argument("--window-size=1280,720")
-        opts.add_argument("--disable-blink-features=AutomationControlled")
-        opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
-        
-        # Disable images for speed
-        prefs = {"profile.managed_default_content_settings.images": 2}
-        opts.add_experimental_option("prefs", prefs)
-        
-        opts.set_capability("browserless:token", BROWSERLESS_TOKEN)
-        
-        driver = webdriver.Remote(
-            command_executor="https://chrome.browserless.io/webdriver",
-            options=opts
-        )
-        driver.set_page_load_timeout(30)
-        driver.set_script_timeout(15)
-        
-        # 1. Visit the account link with nftoken
-        driver.get(test_link)
-        time.sleep(4)
-        
-        current_url = driver.current_url.lower()
-        
-        # If redirected to login, cookie is dead
-        if "login" in current_url or "clearcookies" in current_url:
-            return "dead"
+    with sync_playwright() as pw:
+        browser = None
+        try:
+            # === Connect to Browserless remote Chrome (V2) ===
+            browser = pw.chromium.connect(BROWSERLESS_WS)
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+                viewport={"width": 1280, "height": 720}
+            )
+            page = context.new_page()
+            page.set_default_timeout(30000)
             
-        # 2. Check for the on-hold banner or update payment button
-        is_on_hold = driver.execute_script('''
-            const banner = document.querySelector('div[data-uia="dark-background-banner"]');
-            const updateBtn = document.querySelector('[data-uia="UPDATE_PAYMENT_METHOD"]');
-            return banner !== null || updateBtn !== null;
-        ''')
-        
-        if is_on_hold:
-            return "on_hold"
+            # 1. Visit the account link with nftoken
+            page.goto(test_link, wait_until="domcontentloaded")
+            page.wait_for_timeout(4000)
             
-        return "active"
+            current_url = page.url.lower()
+            
+            # If redirected to login, cookie is dead
+            if "login" in current_url or "clearcookies" in current_url:
+                return "dead"
+                
+            # 2. Check for the on-hold banner or update payment button
+            is_on_hold = page.evaluate('''() => {
+                const banner = document.querySelector('div[data-uia="dark-background-banner"]');
+                const updateBtn = document.querySelector('[data-uia="UPDATE_PAYMENT_METHOD"]');
+                return banner !== null || updateBtn !== null;
+            }''')
+            
+            if is_on_hold:
+                return "on_hold"
+                
+            return "active"
 
-    except Exception as e:
-        # If network error or timeout occurs, throw it so the caller can handle it
-        raise e
-    finally:
-        if driver:
-            try:
-                driver.quit()
-            except Exception:
-                pass
+        except Exception as e:
+            # If network error or timeout occurs, throw it so the caller can handle it
+            raise e
+        finally:
+            if browser:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
