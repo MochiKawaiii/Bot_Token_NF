@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify
 import database as db
 import netflix_token_extractor as extractor
 import netflix_tv_activator as tv_activator
-import netflix_account_checker as account_checker
+import netflix_account_scraper as account_scraper
 import threading
 from lang import get_text
 
@@ -384,15 +384,17 @@ def get_token_command(message):
                 link = extractor.build_nftoken_link(token)
                 expiry_str = extractor.format_expiry(expires)
 
-                # === BROWSERLESS ON-HOLD CHECK (Every time) ===
+                # === BROWSERLESS CHECK & ACCOUNT SCRAPE (Every time) ===
                 try:
                     bot.edit_message_text(t(user_id, "token_verifying"),
                                           chat_id=message.chat.id, message_id=loading_msg.message_id, parse_mode="Markdown")
                 except Exception:
                     pass
                 
+                account_info = None
                 try:
-                    status = account_checker.check_account_status(link)
+                    account_info = account_scraper.scrape_account_info(link)
+                    status = account_info.get("status", "active")
                 except Exception as check_e:
                     # Nếu Browserless lỗi (ví dụ chưa config token), bỏ qua check và trả link
                     print(f"Browserless check error: {check_e}")
@@ -424,7 +426,9 @@ def get_token_command(message):
                 if not is_admin(user_id):
                     db.increment_link_usage(user_id, "token")
 
-                result_text = t(user_id, "token_success", link=link, expiry=expiry_str)
+                user_lang = db.get_user_lang(user_id) or "vi"
+                account_info_str = account_scraper.format_account_info(account_info, lang=user_lang) if account_info else "N/A"
+                result_text = t(user_id, "token_success", link=link, expiry=expiry_str, account_info=account_info_str)
                 if not is_admin(user_id):
                     real_remain = remain - 1 if remain > 0 else 0
                     result_text += t(user_id, "token_remain", remain=real_remain, cap=cap)

@@ -210,26 +210,40 @@ def scrape_account_info(nftoken_link):
                     pass
 
 
-def format_account_info(info):
+def format_account_info(info, lang="vi"):
     """Formats scraped account dict into neat Telegram markdown text."""
     if info.get("status") == "dead":
-        return "❌ Tài khoản đã bị đứt (Dead)."
+        return "❌ Tài khoản đã bị đứt (Dead)." if lang == "vi" else "❌ Account is dead."
     if info.get("status") == "on_hold":
-        return "⚠️ Tài khoản bị tạm ngưng thanh toán (On-Hold)."
+        return "⚠️ Tài khoản bị tạm ngưng thanh toán (On-Hold)." if lang == "vi" else "⚠️ Account is on-hold."
 
-    profiles_str = ", ".join(info.get("profiles", [])) or "None"
+    profiles_str = ", ".join(info.get("profiles", [])) or "N/A"
     
-    lines = [
-        f"👤 Profile: {profiles_str}",
-        f"🌐 Quốc gia: {info.get('country') or 'N/A'}",
-        f"📋 Gói: {info.get('plan_name') or 'N/A'}",
-        f"📨 Email: {info.get('masked_email') or 'N/A'}",
-        f"📅 Thành viên từ: {info.get('member_since') or 'N/A'}",
-        f"🎬 Streams: {info.get('streams') or 'N/A'} | Chất lượng: {info.get('quality') or 'N/A'}",
-    ]
-    if info.get("next_billing"):
-        lines.append(f"💳 Hạn thanh toán: {info['next_billing']}")
-    if info.get("payment_method"):
-        lines.append(f"💳 Thẻ thanh toán: {info['payment_method']}")
+    if lang == "en":
+        lines = [
+            f"👤 *Profiles:* {profiles_str}",
+            f"🌐 *Country:* {info.get('country') or 'N/A'}",
+            f"📋 *Plan:* {info.get('plan_name') or 'N/A'}",
+            f"📨 *Email:* `{info.get('masked_email') or 'N/A'}`",
+            f"📅 *Member Since:* {info.get('member_since') or 'N/A'}",
+            f"🎬 *Streams:* {info.get('streams') or 'N/A'} | *Quality:* {info.get('quality') or 'N/A'}",
+        ]
+        if info.get("next_billing"):
+            lines.append(f"💳 *Next Payment:* {info['next_billing']}")
+        if info.get("payment_method"):
+            lines.append(f"💳 *Payment Method:* {info['payment_method']}")
+    else:
+        lines = [
+            f"👤 *Profiles:* {profiles_str}",
+            f"🌐 *Quốc gia:* {info.get('country') or 'N/A'}",
+            f"📋 *Gói:* {info.get('plan_name') or 'N/A'}",
+            f"📨 *Email:* `{info.get('masked_email') or 'N/A'}`",
+            f"📅 *Thành viên từ:* {info.get('member_since') or 'N/A'}",
+            f"🎬 *Streams:* {info.get('streams') or 'N/A'} | *Chất lượng:* {info.get('quality') or 'N/A'}",
+        ]
+        if info.get("next_billing"):
+            lines.append(f"💳 *Hạn thanh toán:* {info['next_billing']}")
+        if info.get("payment_method"):
+            lines.append(f"💳 *Thẻ thanh toán:* {info['payment_method']}")
 
     return "\n".join(lines)
