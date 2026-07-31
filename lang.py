@@ -150,7 +150,10 @@ TEXTS = {
         "token_success": (
             "✅ *Lấy NFToken thành công!*\n\n"
             "🔗 *URL Đăng Nhập:* {link}\n\n"
-            "⏰ Giờ hết hạn: `{expiry}`\n"
+            "⏰ Giờ hết hạn: `{expiry}`\n\n"
+            "═══════════════════\n"
+            "📊 *Thông Tin Tài Khoản:*\n"
+            "{account_info}\n"
         ),
         "token_remain": "\n🎟 Lượt còn lại hôm nay: *{remain}/{cap}*\n",
         "token_error": "❌ Có lỗi khi tạo token: {error}",
@@ -347,7 +350,10 @@ TEXTS = {
         "token_success": (
             "✅ *NFToken generated successfully!*\n\n"
             "🔗 *Login URL:* {link}\n\n"
-            "⏰ Expires at: `{expiry}`\n"
+            "⏰ Expires at: `{expiry}`\n\n"
+            "═══════════════════\n"
+            "📊 *Account Details:*\n"
+            "{account_info}\n"
         ),
         "token_remain": "\n🎟 Remaining uses today: *{remain}/{cap}*\n",
         "token_error": "❌ Error generating token: {error}",
