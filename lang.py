@@ -150,7 +150,7 @@ TEXTS = {
         "token_success": (
             "✅ *Lấy NFToken thành công!*\n\n"
             "🔗 *URL Đăng Nhập:* {link}\n\n"
-            "⏰ Giờ hết hạn: `{expiry}`\n\n"
+            "⏰ Hết hạn lúc: `{expiry}` _(hạn sử dụng 1 tiếng)_\n\n"
             "═══════════════════\n"
             "📊 *Thông Tin Tài Khoản:*\n"
             "{account_info}\n"
@@ -350,7 +350,7 @@ TEXTS = {
         "token_success": (
             "✅ *NFToken generated successfully!*\n\n"
             "🔗 *Login URL:* {link}\n\n"
-            "⏰ Expires at: `{expiry}`\n\n"
+            "⏰ Expires at: `{expiry}` _(valid for 1 hour)_\n\n"
             "═══════════════════\n"
             "📊 *Account Details:*\n"
             "{account_info}\n"
