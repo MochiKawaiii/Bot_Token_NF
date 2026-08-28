@@ -120,7 +120,11 @@ def scrape_account_info(nftoken_link):
     if not BROWSERLESS_TOKEN:
         raise Exception("BROWSERLESS_TOKEN is not configured!")
 
-    account_link = nftoken_link.replace('/browse?nftoken=', '/account?nftoken=')
+    # Ensure link uses /browse for on-hold check
+    browse_link = nftoken_link
+    if '/account?nftoken=' in browse_link:
+        browse_link = browse_link.replace('/account?nftoken=', '/browse?nftoken=')
+    
     ws_url = f"wss://production-sfo.browserless.io/chrome/playwright?token={BROWSERLESS_TOKEN}"
 
     with sync_playwright() as pw:
@@ -134,22 +138,40 @@ def scrape_account_info(nftoken_link):
             page = context.new_page()
             page.set_default_timeout(30000)
 
-            page.goto(account_link, wait_until="domcontentloaded")
-            page.wait_for_timeout(4000)
+            # === STEP 1: Open /browse to check on-hold & dead ===
+            page.goto(browse_link, wait_until="domcontentloaded")
+            page.wait_for_timeout(5000)
 
             current_url = page.url.lower()
             if "login" in current_url or "clearcookies" in current_url:
                 return {"status": "dead"}
 
-            # Check for On-Hold status
+            # Check for On-Hold status on browse page (Netflix V2 selectors)
             is_on_hold = page.evaluate('''() => {
-                const banner = document.querySelector('div[data-uia="dark-background-banner"]');
+                // New Netflix V2 on-hold banner
+                const storyBanner = document.querySelector('[data-uia="our-story-card-banner"]');
+                const storyCta = document.querySelector('[data-uia="our-story-card-cta"]');
+                // Old selectors (keep as fallback)
+                const darkBanner = document.querySelector('div[data-uia="dark-background-banner"]');
                 const updateBtn = document.querySelector('[data-uia="UPDATE_PAYMENT_METHOD"]');
-                return banner !== null || updateBtn !== null;
+                // Text-based detection
+                const body = document.body.innerText.toLowerCase();
+                const hasHoldText = body.includes('on hold') || body.includes('account is on hold');
+                
+                return storyBanner !== null || storyCta !== null || 
+                       darkBanner !== null || updateBtn !== null || hasHoldText;
             }''')
 
             if is_on_hold:
                 return {"status": "on_hold"}
+
+            # === STEP 2: Navigate to /account to scrape info via GraphQL ===
+            page.goto("https://www.netflix.com/account", wait_until="domcontentloaded")
+            page.wait_for_timeout(4000)
+
+            current_url = page.url.lower()
+            if "login" in current_url or "clearcookies" in current_url:
+                return {"status": "dead"}
 
             # Extract GraphQL model data directly from window.netflix
             graphql_data = page.evaluate('''() => {
