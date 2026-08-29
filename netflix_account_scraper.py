@@ -84,6 +84,15 @@ def mask_email(email):
     return f"{masked_name}@{domain}"
 
 
+def escape_md(text):
+    """Escape Telegram Markdown V1 special characters in text values."""
+    if not text:
+        return text
+    for ch in ['*', '_', '`', '[', ']', '(', ')']:
+        text = text.replace(ch, '\\' + ch)
+    return text
+
+
 def find_dict_by_substring(obj, target_substring):
     """Recursively find dictionary value whose key contains target_substring"""
     if isinstance(obj, dict):
@@ -294,33 +303,38 @@ def format_account_info(info, lang="vi"):
     if info.get("status") == "on_hold":
         return "⚠️ Tài khoản bị tạm ngưng thanh toán (On-Hold)." if lang == "vi" else "⚠️ Account is on-hold."
 
-    profiles_str = ", ".join(info.get("profiles", [])) or "N/A"
+    # Escape markdown-sensitive values
+    profiles_str = ", ".join(escape_md(p) for p in info.get("profiles", [])) or "N/A"
+    payment = info.get("payment_method")
+    plan_name = escape_md(info.get('plan_name') or 'N/A')
+    country = escape_md(info.get('country') or 'N/A')
+    quality = escape_md(info.get('quality') or 'N/A')
     
     if lang == "en":
         lines = [
             f"👤 *Profiles:* {profiles_str}",
-            f"🌐 *Country:* {info.get('country') or 'N/A'}",
-            f"📋 *Plan:* {info.get('plan_name') or 'N/A'}",
+            f"🌐 *Country:* {country}",
+            f"📋 *Plan:* {plan_name}",
             f"📨 *Email:* `{info.get('masked_email') or 'N/A'}`",
             f"📅 *Member Since:* {info.get('member_since') or 'N/A'}",
-            f"🎬 *Streams:* {info.get('streams') or 'N/A'} | *Quality:* {info.get('quality') or 'N/A'}",
+            f"🎬 *Streams:* {info.get('streams') or 'N/A'} | *Quality:* {quality}",
         ]
         if info.get("next_billing"):
             lines.append(f"💳 *Next Payment:* {info['next_billing']}")
-        if info.get("payment_method"):
-            lines.append(f"💳 *Payment Method:* {info['payment_method']}")
+        if payment:
+            lines.append(f"💳 *Payment Method:* `{payment}`")
     else:
         lines = [
             f"👤 *Profiles:* {profiles_str}",
-            f"🌐 *Quốc gia:* {info.get('country') or 'N/A'}",
-            f"📋 *Gói:* {info.get('plan_name') or 'N/A'}",
+            f"🌐 *Quốc gia:* {country}",
+            f"📋 *Gói:* {plan_name}",
             f"📨 *Email:* `{info.get('masked_email') or 'N/A'}`",
             f"📅 *Thành viên từ:* {info.get('member_since') or 'N/A'}",
-            f"🎬 *Streams:* {info.get('streams') or 'N/A'} | *Chất lượng:* {info.get('quality') or 'N/A'}",
+            f"🎬 *Streams:* {info.get('streams') or 'N/A'} | *Chất lượng:* {quality}",
         ]
         if info.get("next_billing"):
             lines.append(f"💳 *Hạn thanh toán:* {info['next_billing']}")
-        if info.get("payment_method"):
-            lines.append(f"💳 *Thẻ thanh toán:* {info['payment_method']}")
+        if payment:
+            lines.append(f"💳 *Thẻ thanh toán:* `{payment}`")
 
     return "\n".join(lines)

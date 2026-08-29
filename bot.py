@@ -443,7 +443,12 @@ def get_token_command(message):
                     bot.edit_message_text(result_text, chat_id=message.chat.id,
                                           message_id=loading_msg.message_id, parse_mode="Markdown", reply_markup=markup)
                 except Exception:
-                    pass
+                    # Fallback: nếu Markdown parse lỗi, gửi lại không format
+                    try:
+                        bot.edit_message_text(result_text, chat_id=message.chat.id,
+                                              message_id=loading_msg.message_id, reply_markup=markup)
+                    except Exception:
+                        pass
                 return
 
             except (extractor.requests.exceptions.HTTPError, ValueError) as e:
