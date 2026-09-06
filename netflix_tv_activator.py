@@ -5,6 +5,7 @@ RAM trên Render gần như bằng 0.
 """
 import os
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+import netflix_account_scraper as account_scraper
 
 BROWSERLESS_TOKEN = os.environ.get("BROWSERLESS_TOKEN", "")
 TV_URL = "https://www.netflix.com/tv8"
@@ -50,7 +51,21 @@ def activate_tv_code(cookie_dict, code):
             
             if cookies_to_add:
                 context.add_cookies(cookies_to_add)
-            
+
+            # === Bước 1.5: Kiểm tra On-Hold / Dead TRƯỚC khi kích hoạt TV ===
+            # Tài khoản on-hold vẫn có thể "link" được thiết bị TV nhưng không xem
+            # được, nên cần bỏ qua và để bot tự chuyển sang cookie khác.
+            # Dùng chung logic phát hiện với luồng /get_token (không phụ thuộc ngôn ngữ).
+            try:
+                hold_status = account_scraper.get_account_hold_status(page)
+            except Exception:
+                # Nếu bước check lỗi (mạng/timeout), cứ thử kích hoạt như cũ.
+                hold_status = "active"
+            if hold_status == "on_hold":
+                raise ValueError("Account is on-hold (payment failure), switching account.")
+            if hold_status == "dead":
+                raise ValueError("Cookie is dead, switching account.")
+
             # === Bước 2: Vào trang TV8 ===
             page.goto(TV_URL, wait_until="domcontentloaded")
             

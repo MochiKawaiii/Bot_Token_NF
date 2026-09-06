@@ -106,6 +106,81 @@ def find_dict_by_substring(obj, target_substring):
     return None
 
 
+# ============================================================
+# ON-HOLD DETECTION (shared by token & TV login flows)
+# ============================================================
+
+def _read_graphql(page):
+    """Read & parse window.netflix.reactContext.models.graphql from the page."""
+    return page.evaluate('''() => {
+        try {
+            const str = window.netflix.reactContext.models.graphql;
+            return typeof str === 'string' ? JSON.parse(str) : str;
+        } catch (e) {
+            return null;
+        }
+    }''')
+
+
+def _graphql_is_on_hold(graphql_data):
+    """Primary on-hold signal: growthAccount.growthHoldMetadata.isUserOnHold.
+    Language-independent (a boolean in the data model, not translated UI text).
+    NOTE: membershipStatus stays 'CURRENT_MEMBER' while on-hold, so it is NOT used.
+    """
+    if graphql_data and "data" in graphql_data:
+        ga = find_dict_by_substring(graphql_data["data"], "growthAccount")
+        if ga:
+            hold_meta = ga.get("growthHoldMetadata")
+            if isinstance(hold_meta, dict) and hold_meta.get("isUserOnHold") is True:
+                return True
+    return False
+
+
+def _dom_is_on_hold(page):
+    """Fallback on-hold check on the /account page. The account page renders in the
+    account's own country language (ES/PT/AR/HI/TH/...), so we must NOT depend on
+    English text. Primary DOM signal is the data-uia code identifier (never
+    translated); a multilingual keyword net is only a last-resort safety layer.
+    """
+    return page.evaluate('''() => {
+        // Language-independent: data-uia is a code identifier, same in every locale.
+        if (document.querySelector('[data-uia="UPDATE_PAYMENT_METHOD"]') !== null) return true;
+
+        // Best-effort multilingual text net (major Netflix regions).
+        const body = (document.body ? document.body.innerText : '').toLowerCase();
+        const kw = [
+            'unable to process your last payment',        // EN
+            'update your payment information',            // EN
+            'cannot process your payment',                // EN
+            'no pudimos procesar',                        // ES
+            'actualiza tu informaci\\u00f3n de pago',       // ES
+            'no se pudo procesar tu pago',                // ES
+            'n\\u00e3o foi poss\\u00edvel processar',         // PT
+            'atualize suas informa\\u00e7\\u00f5es de pagamento', // PT
+            'impossible de traiter',                      // FR
+            'mettez \\u00e0 jour vos informations de paiement',  // FR
+            'zahlung konnte nicht',                       // DE
+            'aktualisiere deine zahlungs',                // DE
+        ];
+        return kw.some(k => body.includes(k));
+    }''')
+
+
+def get_account_hold_status(page):
+    """For an already-authenticated page (Netflix cookies already set): navigate to
+    /account and classify the account as 'dead' | 'on_hold' | 'active'.
+    Reused by the TV login flow so on-hold accounts are skipped there too.
+    """
+    page.goto("https://www.netflix.com/account", wait_until="domcontentloaded")
+    page.wait_for_timeout(5000)
+    url = page.url.lower()
+    if "login" in url or "clearcookies" in url:
+        return "dead"
+    if _graphql_is_on_hold(_read_graphql(page)) or _dom_is_on_hold(page):
+        return "on_hold"
+    return "active"
+
+
 def scrape_account_info(nftoken_link):
     """
     Scrape Netflix account info using Playwright + Browserless V2.
@@ -185,56 +260,12 @@ def scrape_account_info(nftoken_link):
                 return {"status": "dead"}
 
             # Extract GraphQL model data directly from window.netflix
-            graphql_data = page.evaluate('''() => {
-                try {
-                    const str = window.netflix.reactContext.models.graphql;
-                    return typeof str === 'string' ? JSON.parse(str) : str;
-                } catch (e) {
-                    return null;
-                }
-            }''')
+            graphql_data = _read_graphql(page)
 
             # === RELIABLE ON-HOLD DETECTION (on /account) ===
-            # 1) Primary: GraphQL growthHoldMetadata.isUserOnHold (100% accurate).
-            #    membershipStatus stays "CURRENT_MEMBER" even when on-hold, so we
-            #    must NOT rely on it — only isUserOnHold is authoritative.
-            graphql_on_hold = False
-            if graphql_data and "data" in graphql_data:
-                ga = find_dict_by_substring(graphql_data["data"], "growthAccount")
-                if ga:
-                    hold_meta = ga.get("growthHoldMetadata")
-                    if isinstance(hold_meta, dict) and hold_meta.get("isUserOnHold") is True:
-                        graphql_on_hold = True
-
-            # 2) Fallback: DOM signals on /account. The account page renders in the
-            #    account's own country language (ES/PT/AR/HI/TH/...), so we must NOT
-            #    depend on English text. Primary DOM signal is the data-uia code
-            #    identifier (never translated); a multilingual keyword net is only a
-            #    last-resort safety layer.
-            account_dom_on_hold = page.evaluate('''() => {
-                // Language-independent: data-uia is a code identifier, same in every locale.
-                if (document.querySelector('[data-uia="UPDATE_PAYMENT_METHOD"]') !== null) return true;
-
-                // Best-effort multilingual text net (major Netflix regions).
-                const body = (document.body ? document.body.innerText : '').toLowerCase();
-                const kw = [
-                    'unable to process your last payment',        // EN
-                    'update your payment information',            // EN
-                    'cannot process your payment',                // EN
-                    'no pudimos procesar',                        // ES
-                    'actualiza tu informaci\\u00f3n de pago',       // ES
-                    'no se pudo procesar tu pago',                // ES
-                    'n\\u00e3o foi poss\\u00edvel processar',         // PT
-                    'atualize suas informa\\u00e7\\u00f5es de pagamento', // PT
-                    'impossible de traiter',                      // FR
-                    'mettez \\u00e0 jour vos informations de paiement',  // FR
-                    'zahlung konnte nicht',                       // DE
-                    'aktualisiere deine zahlungs',                // DE
-                ];
-                return kw.some(k => body.includes(k));
-            }''')
-
-            if graphql_on_hold or account_dom_on_hold:
+            # Primary signal is GraphQL isUserOnHold (language-independent); DOM is a
+            # fallback. See _graphql_is_on_hold / _dom_is_on_hold for details.
+            if _graphql_is_on_hold(graphql_data) or _dom_is_on_hold(page):
                 return {"status": "on_hold"}
 
             res = {
