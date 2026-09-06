@@ -175,8 +175,10 @@ def scrape_account_info(nftoken_link):
                 return {"status": "on_hold"}
 
             # === STEP 2: Navigate to /account to scrape info via GraphQL ===
+            # NOTE: On-hold accounts still load /browse normally (profile gate),
+            # so the reliable on-hold signal only appears here on /account.
             page.goto("https://www.netflix.com/account", wait_until="domcontentloaded")
-            page.wait_for_timeout(4000)
+            page.wait_for_timeout(5000)
 
             current_url = page.url.lower()
             if "login" in current_url or "clearcookies" in current_url:
@@ -191,6 +193,49 @@ def scrape_account_info(nftoken_link):
                     return null;
                 }
             }''')
+
+            # === RELIABLE ON-HOLD DETECTION (on /account) ===
+            # 1) Primary: GraphQL growthHoldMetadata.isUserOnHold (100% accurate).
+            #    membershipStatus stays "CURRENT_MEMBER" even when on-hold, so we
+            #    must NOT rely on it — only isUserOnHold is authoritative.
+            graphql_on_hold = False
+            if graphql_data and "data" in graphql_data:
+                ga = find_dict_by_substring(graphql_data["data"], "growthAccount")
+                if ga:
+                    hold_meta = ga.get("growthHoldMetadata")
+                    if isinstance(hold_meta, dict) and hold_meta.get("isUserOnHold") is True:
+                        graphql_on_hold = True
+
+            # 2) Fallback: DOM signals on /account. The account page renders in the
+            #    account's own country language (ES/PT/AR/HI/TH/...), so we must NOT
+            #    depend on English text. Primary DOM signal is the data-uia code
+            #    identifier (never translated); a multilingual keyword net is only a
+            #    last-resort safety layer.
+            account_dom_on_hold = page.evaluate('''() => {
+                // Language-independent: data-uia is a code identifier, same in every locale.
+                if (document.querySelector('[data-uia="UPDATE_PAYMENT_METHOD"]') !== null) return true;
+
+                // Best-effort multilingual text net (major Netflix regions).
+                const body = (document.body ? document.body.innerText : '').toLowerCase();
+                const kw = [
+                    'unable to process your last payment',        // EN
+                    'update your payment information',            // EN
+                    'cannot process your payment',                // EN
+                    'no pudimos procesar',                        // ES
+                    'actualiza tu informaci\\u00f3n de pago',       // ES
+                    'no se pudo procesar tu pago',                // ES
+                    'n\\u00e3o foi poss\\u00edvel processar',         // PT
+                    'atualize suas informa\\u00e7\\u00f5es de pagamento', // PT
+                    'impossible de traiter',                      // FR
+                    'mettez \\u00e0 jour vos informations de paiement',  // FR
+                    'zahlung konnte nicht',                       // DE
+                    'aktualisiere deine zahlungs',                // DE
+                ];
+                return kw.some(k => body.includes(k));
+            }''')
+
+            if graphql_on_hold or account_dom_on_hold:
+                return {"status": "on_hold"}
 
             res = {
                 "status": "active",
