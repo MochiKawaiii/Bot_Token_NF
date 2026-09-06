@@ -31,30 +31,52 @@ def insert_cookie(netflix_id, full_cookie_dict, source_file=""):
             "source": source_file,
             "is_alive": True,
             "verified": False,
-            "times_used": 0
+            "times_used": 0,
+            "served_in_round": False
         })
         return True
     return False
 
 def get_active_cookie():
-    """Lấy 1 cookie còn sống (is_alive=True), ưu tiên những cookie đã verify và ít được sử dụng nhất"""
+    """Phát cookie NGẪU NHIÊN không lặp trong mỗi vòng.
+
+    Mỗi vòng: mỗi cookie còn sống (is_alive=True) được phát đúng 1 lần theo thứ
+    tự ngẫu nhiên (cờ served_in_round). Khi tất cả cookie sống đã được phát hết
+    trong vòng hiện tại thì tự động reset cờ và bắt đầu một vòng random mới.
+    Cookie mới nạp giữa vòng (chưa có cờ) được coi là chưa phát nên vẫn thuộc
+    vòng đang chạy, không bị phát dồn.
+    """
     db = get_db()
     cookies_col = db.cookies
-    # Ưu tiên lấy cookie đã verified
-    cookie = cookies_col.find_one({"is_alive": True, "verified": True}, sort=[("times_used", 1)])
-    
-    # Nếu không có cookie verified nào, lấy cookie chưa verify
+
+    def _pick_unserved():
+        # Chọn ngẫu nhiên 1 cookie sống chưa được phát trong vòng này.
+        # {"$ne": True} khớp cả document thiếu field served_in_round (cookie mới).
+        docs = list(cookies_col.aggregate([
+            {"$match": {"is_alive": True, "served_in_round": {"$ne": True}}},
+            {"$sample": {"size": 1}},
+        ]))
+        return docs[0] if docs else None
+
+    cookie = _pick_unserved()
     if not cookie:
-        cookie = cookies_col.find_one({"is_alive": True}, sort=[("times_used", 1)])
-    
-    if cookie:
-        # Cập nhật số lần sử dụng
-        cookies_col.update_one(
-            {"_id": cookie["_id"]},
-            {"$inc": {"times_used": 1}}
+        # Hết vòng -> reset cờ cho toàn bộ cookie sống rồi bắt đầu vòng random mới.
+        reset = cookies_col.update_many(
+            {"is_alive": True},
+            {"$set": {"served_in_round": False}}
         )
-        return cookie
-    return None
+        if reset.matched_count == 0:
+            return None  # Không còn cookie sống nào
+        cookie = _pick_unserved()
+        if not cookie:
+            return None
+
+    # Đánh dấu đã phát trong vòng này + tăng tổng lượt phát (dùng cho /stats).
+    cookies_col.update_one(
+        {"_id": cookie["_id"]},
+        {"$set": {"served_in_round": True}, "$inc": {"times_used": 1}}
+    )
+    return cookie
 
 def mark_cookie_as_dead(netflix_id):
     """Đánh dấu một cookie là đã chết"""
