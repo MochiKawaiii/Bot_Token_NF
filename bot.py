@@ -9,6 +9,7 @@ import netflix_token_extractor as extractor
 import netflix_tv_activator as tv_activator
 import netflix_account_scraper as account_scraper
 import threading
+import traceback
 from lang import get_text
 
 # --- Configurations ---
@@ -397,7 +398,8 @@ def get_token_command(message):
                     status = account_info.get("status", "active")
                 except Exception as check_e:
                     # Nếu Browserless lỗi (ví dụ chưa config token), bỏ qua check và trả link
-                    print(f"Browserless check error: {check_e}")
+                    print(f"Browserless check error [{type(check_e).__name__}]: {check_e}")
+                    traceback.print_exc()
                     status = "active"
 
                 if status == "on_hold":
